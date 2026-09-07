@@ -4,6 +4,7 @@ import ColumnConcreteSection from "@/components/ColumnConcreteSection";
 import DPCSection from "@/components/DPCSection";
 import ExcavationSection from "@/components/ExcavationSection";
 import ExternalPlasterSection from "@/components/ExternalPlasterSection";
+import FootingReinforcementSection from "@/components/FootingReinforcementSection";
 import FootingSection from "@/components/FootingSection";
 import InternalPlasterSection from "@/components/InternalPlasterSection";
 import PCCSection from "@/components/PCCSection";
@@ -22,6 +23,7 @@ export default function Home() {
       <ExternalPlasterSection />
       <SlabSection />
       <FootingSection />
+      <FootingReinforcementSection />
     </main>
   );
 }
