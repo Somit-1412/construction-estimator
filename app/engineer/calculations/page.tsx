@@ -47,6 +47,11 @@ const calculationCategories = [
         description: "Slab reinforcement steel quantities",
         href: "/engineer/calculations/slab-reinforcement",
       },
+      {
+        name: "Slab Shuttering",
+        description: "Slab shuttering and centering quantities",
+        href: "/engineer/calculations/slab-shuttering",
+      },      
     ],
   },
   {
