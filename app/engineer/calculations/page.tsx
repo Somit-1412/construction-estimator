@@ -57,20 +57,24 @@ const calculationCategories = [
   {
   title: "Masonry",
   description: "Wall and masonry-related calculations.",
-  items: [
-    {
-      name: "Brickwork",
-      description:
-        "Foundation, plinth and superstructure brickwork",
-      href: "/engineer/calculations/brickwork",
-    },
-    {
-      name: "DPC",
-      description: "Damp-proof course quantities",
-      href: "/engineer/calculations/dpc",
-    },
-  ],
-},
+    items: [
+      {
+        name: "Foundation & Plinth Brickwork",
+        description: "Foundation and plinth masonry quantities",
+        href: "/engineer/calculations/foundation-brickwork",
+      },
+      {
+        name: "Brickwork",
+        description: "Superstructure brickwork quantities and deductions",
+        href: "/engineer/calculations/brickwork",
+      },
+      {
+        name: "DPC",
+        description: "Damp-proof course quantities",
+        href: "/engineer/calculations/dpc",
+      },
+    ],
+  },
   {
   title: "Finishing",
   description: "Internal and external finishing quantities.",
