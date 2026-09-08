@@ -38,8 +38,14 @@ const calculationCategories = [
       },
       {
         name: "Slabs",
-        description: "Slab concrete and structural quantities",
+        description:
+          "Slab concrete, reinforcement and structural quantities",
         href: "/engineer/calculations/slabs",
+      },
+      {
+        name: "Slab Reinforcement",
+        description: "Slab reinforcement steel quantities",
+        href: "/engineer/calculations/slab-reinforcement",
       },
     ],
   },
