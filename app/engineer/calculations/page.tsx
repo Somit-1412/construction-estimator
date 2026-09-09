@@ -104,6 +104,11 @@ const calculationCategories = [
     description: "Doors, windows and related work.",
     items: [
       {
+        name: "Lintels",
+        description: "Lintel concrete and reinforcement",
+        href: "/engineer/calculations/lintels",
+      },
+      {
         name: "Doors",
         description: "Door quantity and dimensions",
       },
@@ -114,10 +119,6 @@ const calculationCategories = [
       {
         name: "Ventilators",
         description: "Ventilator quantity and dimensions",
-      },
-      {
-        name: "Lintels",
-        description: "Lintel concrete and reinforcement",
       },
     ],
   },
