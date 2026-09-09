@@ -97,6 +97,7 @@ const calculationCategories = [
     {
       name: "Painting",
       description: "Internal and external painting quantities",
+      href: "/engineer/calculations/painting",
     },
   ],
 },

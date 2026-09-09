@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  calculateInternalPlaster,
   calculateInternalPlasterDeductionArea,
   calculateInternalPlasterSurfaceArea,
   type InternalPlasterDeduction,
@@ -173,37 +174,14 @@ export default function InternalPlasterSection() {
     );
   };
 
-  const totalGross = plasterGroups.reduce(
-    (total, group) => {
-      try {
-        return (
-          total +
-          calculateInternalPlasterSurfaceArea(group)
-        );
-      } catch {
-        return total;
-      }
-    },
-    0
+  const plasterResult = calculateInternalPlaster(
+    plasterGroups,
+    deductions
   );
 
-  const totalDeductions = deductions.reduce(
-    (total, deduction) => {
-      try {
-        return (
-          total +
-          calculateInternalPlasterDeductionArea(
-            deduction
-          )
-        );
-      } catch {
-        return total;
-      }
-    },
-    0
-  );
-
-  const totalNet = totalGross - totalDeductions;
+  const totalGross = plasterResult.grossArea;
+  const totalDeductions = plasterResult.deductionArea;
+  const totalNet = plasterResult.netArea;
 
   return (
     <section className="mx-auto max-w-5xl p-8">

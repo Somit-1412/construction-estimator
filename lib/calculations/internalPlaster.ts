@@ -68,3 +68,34 @@ export function calculateInternalPlasterDeductionArea(
     deduction.height
   );
 }
+
+export type InternalPlasterResult = {
+  grossArea: number;
+  deductionArea: number;
+  netArea: number;
+};
+
+export function calculateInternalPlaster(
+  groups: InternalPlasterGroup[],
+  deductions: InternalPlasterDeduction[]
+): InternalPlasterResult {
+  const grossArea = groups.reduce(
+    (total, group) =>
+      total + calculateInternalPlasterSurfaceArea(group),
+    0
+  );
+
+  const deductionArea = deductions.reduce(
+    (total, deduction) =>
+      total + calculateInternalPlasterDeductionArea(deduction),
+    0
+  );
+
+  const netArea = Math.max(0, grossArea - deductionArea);
+
+  return {
+    grossArea,
+    deductionArea,
+    netArea,
+  };
+}
