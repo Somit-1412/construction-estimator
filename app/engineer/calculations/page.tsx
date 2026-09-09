@@ -112,6 +112,7 @@ const calculationCategories = [
       {
         name: "Doors",
         description: "Door quantity and dimensions",
+        href: "/engineer/calculations/doors",
       },
       {
         name: "Windows",
