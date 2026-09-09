@@ -122,6 +122,7 @@ const calculationCategories = [
       {
         name: "Ventilators",
         description: "Ventilator quantity and dimensions",
+        href: "/engineer/calculations/ventilators",
       },
     ],
   },
