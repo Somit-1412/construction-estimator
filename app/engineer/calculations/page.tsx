@@ -117,6 +117,7 @@ const calculationCategories = [
       {
         name: "Windows",
         description: "Window quantity and dimensions",
+        href: "/engineer/calculations/windows",
       },
       {
         name: "Ventilators",
