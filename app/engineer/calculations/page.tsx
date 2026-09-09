@@ -91,7 +91,8 @@ const calculationCategories = [
     },
     {
       name: "Flooring",
-      description: "Floor and tile quantities",
+      description: "Floor areas, tile quantities and materials",
+      href: "/engineer/calculations/flooring",
     },
     {
       name: "Painting",
