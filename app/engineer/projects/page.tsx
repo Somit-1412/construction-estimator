@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
 type Project = {
@@ -194,9 +195,10 @@ export default function ProjectsPage() {
         ) : (
           <div className="divide-y divide-zinc-800">
             {projects.map((project) => (
-              <div
+              <Link
                 key={project.id}
-                className="flex flex-col gap-3 px-6 py-5 md:flex-row md:items-center md:justify-between"
+                href={`/engineer/projects/${project.id}`}
+                className="flex flex-col gap-3 px-6 py-5 transition hover:bg-zinc-800/50 md:flex-row md:items-center md:justify-between"
               >
                 <div>
                   <h3 className="font-medium text-white">
@@ -213,7 +215,7 @@ export default function ProjectsPage() {
                 <div className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-300">
                   {project.status.replaceAll("_", " ")}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
