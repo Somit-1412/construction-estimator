@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import DrawingsSection from "./DrawingsSection";
 
 import { prisma } from "@/lib/prisma";
 
@@ -15,8 +16,13 @@ export default async function ProjectPage({
   const { id } = await params;
 
   const project = await prisma.project.findUnique({
-    where: {
-      id,
+    where: { id },
+    include: {
+      drawings: {
+        orderBy: {
+          uploadedAt: "desc",
+        },
+      },
     },
   });
 
@@ -92,12 +98,10 @@ export default async function ProjectPage({
         </p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-            <h3 className="font-medium text-white">Drawings</h3>
-            <p className="mt-1 text-sm text-zinc-500">
-              Project drawings will be stored and reviewed here.
-            </p>
-          </div>
+          <DrawingsSection
+            projectId={project.id}
+            initialDrawings={project.drawings}
+          />
 
           <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
             <h3 className="font-medium text-white">Calculations</h3>
