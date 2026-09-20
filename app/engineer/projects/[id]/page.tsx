@@ -103,29 +103,44 @@ export default async function ProjectPage({
             initialDrawings={project.drawings}
           />
 
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-            <h3 className="font-medium text-white">Calculations</h3>
+          <Link
+            href={`/engineer/projects/${project.id}/calculations`}
+            className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 transition hover:border-zinc-600 hover:bg-zinc-900"
+          >
+            <h3 className="font-medium text-white">
+              Calculations
+            </h3>
+
             <p className="mt-1 text-sm text-zinc-500">
-              Engineering quantities will be calculated here.
+              Open and manage engineering calculations for this project.
             </p>
-          </div>
+          </Link>
 
           <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-            <h3 className="font-medium text-white">Materials</h3>
+            <h3 className="font-medium text-white">
+              Materials
+            </h3>
+
             <p className="mt-1 text-sm text-zinc-500">
               Material quantities will be derived from the calculations.
             </p>
           </div>
 
           <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-            <h3 className="font-medium text-white">Costing</h3>
+            <h3 className="font-medium text-white">
+              Costing
+            </h3>
+
             <p className="mt-1 text-sm text-zinc-500">
               Rates and total construction cost will be calculated here.
             </p>
           </div>
 
           <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-            <h3 className="font-medium text-white">Report</h3>
+            <h3 className="font-medium text-white">
+              Report
+            </h3>
+
             <p className="mt-1 text-sm text-zinc-500">
               The finalized estimate will be generated here.
             </p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateColumnConcreteQuantity,
   calculateColumnShutteringArea,
@@ -8,7 +8,7 @@ import {
 } from "@/lib/calculations/columns";
 
 export default function ColumnConcreteSection() {
-  const [columnGroups, setColumnGroups] = useState<ColumnGroup[]>([
+  const [columnGroups, setColumnGroups] = useState<ColumnGroup[]>("columnGroups", [
     {
       type: "C1",
       width: 0.45,

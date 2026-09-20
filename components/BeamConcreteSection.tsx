@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateBeamConcreteQuantity,
   calculateBeamShutteringArea,
@@ -16,7 +16,7 @@ type BeamData = BeamGroup & {
 };
 
 export default function BeamConcreteSection() {
-  const [beamGroups, setBeamGroups] = useState<BeamData[]>([
+  const [beamGroups, setBeamGroups] = useState<BeamData[]>("beamGroups", [
     {
       type: "B1",
       width: 0.23,

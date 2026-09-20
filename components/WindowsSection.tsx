@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateWindowOpeningArea,
   type WindowGroup,
 } from "@/lib/calculations/windows";
 
 export default function WindowsSection() {
-  const [groups, setGroups] = useState<WindowGroup[]>([
+  const [groups, setGroups] = useState<WindowGroup[]>("groups", [
     {
       mark: "W1",
       number: 3,

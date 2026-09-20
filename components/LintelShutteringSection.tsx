@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateLintelShutteringArea,
   LintelShutteringGroup,
@@ -16,7 +16,7 @@ const initialGroups: LintelShutteringGroup[] = [
 
 export default function LintelShutteringSection() {
   const [groups, setGroups] =
-    useState<LintelShutteringGroup[]>(initialGroups);
+    useState<LintelShutteringGroup[]>("lintelShutteringGroups", initialGroups);
 
   function updateGroup(
     index: number,

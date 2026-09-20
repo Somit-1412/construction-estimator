@@ -8,26 +8,113 @@ datasource db {
 }
 
 model Project {
-  id          String        @id @default(cuid())
+  id          String   @id @default(cuid())
   projectName String
   clientName  String
   clientEmail String
   location    String
-  status      ProjectStatus @default(SUBMITTED)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  drawings    Drawing[]
+
+  status ProjectStatus @default(SUBMITTED)
+
+  drawings     Drawing[]
+  calculations Calculation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Drawing {
   id           String   @id @default(cuid())
   projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   originalName String
   storageKey   String   @unique
   mimeType     String
   sizeBytes    Int
-  uploadedAt   DateTime @default(now())
-  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  uploadedAt DateTime @default(now())
+}
+
+model Calculation {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  type CalculationType
+
+  inputs  Json
+  results Json
+
+  calculatedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([projectId, type])
+}
+
+model Material {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  category  String
+  unit      MaterialUnit
+  rates     MaterialRate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MaterialRate {
+  id         String   @id @default(cuid())
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  rate          Decimal  @db.Decimal(12, 2)
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+
+  createdAt DateTime @default(now())
+}
+
+enum CalculationType {
+  EXCAVATION
+  PCC
+  FOOTING
+  FOOTING_REINFORCEMENT
+  FOOTING_SHUTTERING
+  COLUMN_CONCRETE
+  COLUMN_SHUTTERING
+  BEAM_CONCRETE
+  BEAM_REINFORCEMENT
+  BEAM_BBS
+  BEAM_SHUTTERING
+  SLAB_CONCRETE
+  SLAB_REINFORCEMENT
+  SLAB_SHUTTERING
+  BRICKWORK
+  FOUNDATION_PLINTH_BRICKWORK
+  DPC
+  LINTEL
+  LINTEL_REINFORCEMENT
+  LINTEL_SHUTTERING
+  FILLING
+  INTERNAL_PLASTER
+  EXTERNAL_PLASTER
+  FLOORING
+  FLOORING_MATERIALS
+  DOORS
+  WINDOWS
+  VENTILATORS
+  PAINTING
+}
+
+enum MaterialUnit {
+  BAG
+  CUBIC_METER
+  NUMBER
+  KILOGRAM
+  SQUARE_METER
+  LITRE
 }
 
 enum ProjectStatus {

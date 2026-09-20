@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateDPCQuantity,
   type DPCGroup,
 } from "@/lib/calculations/dpc";
 
 export default function DPCSection() {
-  const [dpcGroups, setDPCGroups] = useState<DPCGroup[]>([
+  const [dpcGroups, setDPCGroups] = useState<DPCGroup[]>("dpcGroups", [
     {
       type: "Long Wall",
       number: 3,

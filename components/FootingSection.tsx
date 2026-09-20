@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateFootingConcreteQuantity,
   FootingGroup,
@@ -32,7 +32,7 @@ const initialGroups: FootingGroup[] = [
 
 export default function FootingSection() {
   const [groups, setGroups] =
-    useState<FootingGroup[]>(initialGroups);
+    useState<FootingGroup[]>("footingGroups", initialGroups);
 
   function updateGroup(
     index: number,

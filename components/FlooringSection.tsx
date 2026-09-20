@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateFlooringArea,
   FlooringGroup,
@@ -40,13 +40,13 @@ const initialMaterialInput: FlooringMaterialInput = {
 
 export default function FlooringSection() {
   const [groups, setGroups] =
-    useState<FlooringGroup[]>(initialGroups);
+    useState<FlooringGroup[]>("groups", initialGroups);
 
   const [tileInput, setTileInput] =
-    useState<FlooringTileInput>(initialTileInput);
+    useState<FlooringTileInput>("tileInput", initialTileInput);
 
   const [materialInput, setMaterialInput] =
-    useState<FlooringMaterialInput>(initialMaterialInput);
+    useState<FlooringMaterialInput>("materialInput", initialMaterialInput);
 
   function updateGroup(
     index: number,

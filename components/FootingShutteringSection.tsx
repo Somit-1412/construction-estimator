@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateFootingShutteringArea,
   FootingShutteringGroup,
@@ -32,7 +32,7 @@ const initialGroups: FootingShutteringGroup[] = [
 
 export default function FootingShutteringSection() {
   const [groups, setGroups] =
-    useState<FootingShutteringGroup[]>(initialGroups);
+    useState<FootingShutteringGroup[]>("footingShutteringGroups", initialGroups);
 
   function updateGroup(
     index: number,

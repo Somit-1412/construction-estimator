@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateDoorOpeningArea,
   type DoorGroup,
 } from "@/lib/calculations/doors";
 
 export default function DoorsSection() {
-  const [groups, setGroups] = useState<DoorGroup[]>([
+  const [groups, setGroups] = useState<DoorGroup[]>("groups", [
     {
       type: "D1",
       number: 1,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateFoundationBrickworkVolume,
   FoundationBrickworkGroup,
@@ -19,7 +19,7 @@ const initialGroups: FoundationBrickworkGroup[] = [
 
 export default function FoundationBrickworkSection() {
   const [groups, setGroups] =
-    useState<FoundationBrickworkGroup[]>(initialGroups);
+    useState<FoundationBrickworkGroup[]>("groups", initialGroups);
 
   function updateGroup(
     index: number,

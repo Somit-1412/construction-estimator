@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateLintelConcreteVolume,
   LintelGroup,
@@ -18,7 +18,7 @@ const initialGroups: LintelGroup[] = [
 
 export default function LintelConcreteSection() {
   const [groups, setGroups] =
-    useState<LintelGroup[]>(initialGroups);
+    useState<LintelGroup[]>("lintelGroups", initialGroups);
 
   function updateGroup(
     index: number,

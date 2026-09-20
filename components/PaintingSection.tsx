@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import { calculateInternalPaintingArea } from "@/lib/calculations/painting";
 
 export default function PaintingSection() {
   const [internalPlasterNetArea, setInternalPlasterNetArea] =
-    useState(130.825);
+    useState("internalPlasterNetArea", 130.825);
 
   const paintingArea = calculateInternalPaintingArea(
     internalPlasterNetArea

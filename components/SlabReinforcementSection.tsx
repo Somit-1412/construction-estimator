@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateSlabReinforcement,
   SlabReinforcementGroup,
@@ -23,7 +23,7 @@ const initialGroups: SlabReinforcementGroup[] = [
 
 export default function SlabReinforcementSection() {
   const [groups, setGroups] =
-    useState<SlabReinforcementGroup[]>(initialGroups);
+    useState<SlabReinforcementGroup[]>("groups", initialGroups);
 
   function updateGroup(
     index: number,

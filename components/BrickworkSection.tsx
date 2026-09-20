@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateBrickworkDeductionQuantity,
   calculateBrickworkGrossQuantity,
@@ -11,7 +11,7 @@ import {
 
 export default function BrickworkSection() {
   const [brickworkGroups, setBrickworkGroups] =
-    useState<BrickworkGroup[]>([
+    useState<BrickworkGroup[]>("brickworkGroups", [
       {
         type: "External Wall",
         number: 1,

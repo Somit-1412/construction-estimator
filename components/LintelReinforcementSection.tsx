@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateLintelReinforcement,
   LintelReinforcementGroup,
@@ -23,7 +23,7 @@ const initialGroups: LintelReinforcementGroup[] = [
 
 export default function LintelReinforcementSection() {
   const [groups, setGroups] =
-    useState<LintelReinforcementGroup[]>(initialGroups);
+    useState<LintelReinforcementGroup[]>("lintelReinforcementGroups", initialGroups);
 
   function updateGroup(
     index: number,

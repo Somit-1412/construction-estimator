@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateSlabShutteringArea,
   SlabShutteringGroup,
@@ -16,7 +16,7 @@ const initialGroups: SlabShutteringGroup[] = [
 
 export default function SlabShutteringSection() {
   const [groups, setGroups] =
-    useState<SlabShutteringGroup[]>(initialGroups);
+    useState<SlabShutteringGroup[]>("groups", initialGroups);
 
   function updateGroup(
     index: number,

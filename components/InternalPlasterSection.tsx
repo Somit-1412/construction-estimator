@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateInternalPlaster,
   calculateInternalPlasterDeductionArea,
@@ -11,7 +11,7 @@ import {
 
 export default function InternalPlasterSection() {
   const [plasterGroups, setPlasterGroups] =
-    useState<InternalPlasterGroup[]>([
+    useState<InternalPlasterGroup[]>("plasterGroups", [
       {
         type: "Living Room - Long Wall",
         surfaceType: "wall",
@@ -78,7 +78,7 @@ export default function InternalPlasterSection() {
     ]);
 
   const [deductions, setDeductions] =
-    useState<InternalPlasterDeduction[]>([
+    useState<InternalPlasterDeduction[]>("deductions", [
       {
         type: "Door",
         number: 1,

@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculatePCCQuantity,
   type PCCGroup,
 } from "@/lib/calculations/pcc";
 
 export default function PCCSection() {
-  const [pccGroups, setPCCGroups] = useState<PCCGroup[]>([
+  const [pccGroups, setPCCGroups] = useState<PCCGroup[]>("pccGroups", [
     {
       number: 3,
       length: 5.46,

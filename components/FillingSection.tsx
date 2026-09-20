@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateFillingVolume,
   FillingGroup,
@@ -18,7 +18,7 @@ const initialGroups: FillingGroup[] = [
 
 export default function FillingSection() {
   const [groups, setGroups] =
-    useState<FillingGroup[]>(initialGroups);
+    useState<FillingGroup[]>("groups", initialGroups);
 
   function updateGroup(
     index: number,

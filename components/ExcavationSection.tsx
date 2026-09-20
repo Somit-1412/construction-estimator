@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateExcavationDetails,
   type ExcavationGroup,
@@ -9,7 +9,7 @@ import {
 export default function ExcavationSection() {
   const [excavationGroups, setExcavationGroups] = useState<
     ExcavationGroup[]
-  >([
+  >("excavationGroups", [
     {
       type: "long",
       number: 2,

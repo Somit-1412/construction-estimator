@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateExternalPlasterArea,
   calculateExternalPlasterDeductionArea,
@@ -10,7 +10,7 @@ import {
 
 export default function ExternalPlasterSection() {
   const [plasterGroups, setPlasterGroups] =
-    useState<ExternalPlasterGroup[]>([
+    useState<ExternalPlasterGroup[]>("plasterGroups", [
       {
         type: "Long Wall - GL to PL",
         number: 2,
@@ -38,7 +38,7 @@ export default function ExternalPlasterSection() {
     ]);
 
   const [deductions, setDeductions] =
-    useState<ExternalPlasterDeduction[]>([
+    useState<ExternalPlasterDeduction[]>("deductions", [
       {
         type: "Door",
         number: 1,

@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateVentilatorOpeningArea,
   type VentilatorGroup,
 } from "@/lib/calculations/ventilators";
 
 export default function VentilatorsSection() {
-  const [groups, setGroups] = useState<VentilatorGroup[]>([
+  const [groups, setGroups] = useState<VentilatorGroup[]>("groups", [
     {
       mark: "V1",
       number: 1,

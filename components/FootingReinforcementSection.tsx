@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCalculationState as useState } from "@/components/CalculationPersistence";
 import {
   calculateFootingReinforcementTotalLength,
   calculateFootingReinforcementWeight,
@@ -40,7 +40,7 @@ const initialGroups: FootingReinforcementGroup[] = [
 
 export default function FootingReinforcementSection() {
   const [groups, setGroups] =
-    useState<FootingReinforcementGroup[]>(
+    useState<FootingReinforcementGroup[]>("footingReinforcementGroups", 
       initialGroups
     );
 
