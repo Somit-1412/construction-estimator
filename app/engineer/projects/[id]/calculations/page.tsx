@@ -104,6 +104,13 @@ export default async function ProjectCalculationsPage({ params }: Props) {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-3">
+        <Link href={`/engineer/projects/${project.id}/specifications`} className="rounded-lg border border-zinc-700 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800">Specifications</Link>
+        <Link href={`/engineer/projects/${project.id}/materials`} className="rounded-lg border border-zinc-700 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800">Materials</Link>
+        <Link href={`/engineer/projects/${project.id}/costing`} className="rounded-lg border border-zinc-700 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800">Costing</Link>
+        <Link href={`/engineer/projects/${project.id}/report`} className="rounded-lg border border-zinc-700 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800">Report</Link>
+      </div>
+
       {categories.map((category) => (
         <section key={category.title}>
           <div className="mb-5">

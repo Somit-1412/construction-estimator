@@ -7,13 +7,9 @@ export async function GET() {
     },
     include: {
       rates: {
-        where: {
-          effectiveTo: null,
-        },
         orderBy: {
           effectiveFrom: "desc",
         },
-        take: 1,
       },
     },
   });

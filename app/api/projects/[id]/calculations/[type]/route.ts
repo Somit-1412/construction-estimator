@@ -1,5 +1,6 @@
 import { CalculationType } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { calculateCalculationResult } from "@/lib/project/quantityEngine";
 
 type RouteProps = {
   params: Promise<{
@@ -82,18 +83,16 @@ export async function PUT(
 
   const body = await request.json();
 
-  if (
-    body.inputs === undefined ||
-    body.results === undefined
-  ) {
+  if (body.inputs === undefined) {
     return Response.json(
       {
-        error:
-          "Calculation inputs and results are required.",
+        error: "Calculation inputs are required.",
       },
       { status: 400 },
     );
   }
+
+  const results = calculateCalculationResult(type, body.inputs);
 
   const calculation = await prisma.calculation.upsert({
     where: {
@@ -104,14 +103,14 @@ export async function PUT(
     },
     update: {
       inputs: body.inputs,
-      results: body.results,
+      results,
       calculatedAt: new Date(),
     },
     create: {
       projectId: id,
       type,
       inputs: body.inputs,
-      results: body.results,
+      results,
       calculatedAt: new Date(),
     },
   });

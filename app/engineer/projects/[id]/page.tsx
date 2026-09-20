@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DrawingsSection from "./DrawingsSection";
+import StatusControls from "./StatusControls";
 
 import { prisma } from "@/lib/prisma";
 
@@ -81,9 +82,7 @@ export default async function ProjectPage({
             </div>
           </div>
 
-          <div className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-300">
-            {project.status.replaceAll("_", " ")}
-          </div>
+          <StatusControls projectId={project.id} initialStatus={project.status} />
         </div>
       </section>
 
@@ -116,35 +115,37 @@ export default async function ProjectPage({
             </p>
           </Link>
 
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-            <h3 className="font-medium text-white">
-              Materials
-            </h3>
+          <Link
+            href={`/engineer/projects/${project.id}/specifications`}
+            className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 transition hover:border-zinc-600 hover:bg-zinc-900"
+          >
+            <h3 className="font-medium text-white">Specifications</h3>
+            <p className="mt-1 text-sm text-zinc-500">Configure project-specific material conversion assumptions.</p>
+          </Link>
 
-            <p className="mt-1 text-sm text-zinc-500">
-              Material quantities will be derived from the calculations.
-            </p>
-          </div>
+          <Link
+            href={`/engineer/projects/${project.id}/materials`}
+            className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 transition hover:border-zinc-600 hover:bg-zinc-900"
+          >
+            <h3 className="font-medium text-white">Materials</h3>
+            <p className="mt-1 text-sm text-zinc-500">Review quantities derived from calculations.</p>
+          </Link>
 
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-            <h3 className="font-medium text-white">
-              Costing
-            </h3>
+          <Link
+            href={`/engineer/projects/${project.id}/costing`}
+            className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 transition hover:border-zinc-600 hover:bg-zinc-900"
+          >
+            <h3 className="font-medium text-white">Costing</h3>
+            <p className="mt-1 text-sm text-zinc-500">Review material costs and estimate totals.</p>
+          </Link>
 
-            <p className="mt-1 text-sm text-zinc-500">
-              Rates and total construction cost will be calculated here.
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-            <h3 className="font-medium text-white">
-              Report
-            </h3>
-
-            <p className="mt-1 text-sm text-zinc-500">
-              The finalized estimate will be generated here.
-            </p>
-          </div>
+          <Link
+            href={`/engineer/projects/${project.id}/report`}
+            className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 transition hover:border-zinc-600 hover:bg-zinc-900"
+          >
+            <h3 className="font-medium text-white">Report</h3>
+            <p className="mt-1 text-sm text-zinc-500">Review and print the project estimate.</p>
+          </Link>
         </div>
       </section>
     </div>

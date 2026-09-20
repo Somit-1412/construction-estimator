@@ -52,19 +52,6 @@ export default function EngineerLayout({
                 Materials
               </Link>
 
-              <Link
-                href="/engineer/costing"
-                className="block rounded-lg px-3 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
-              >
-                Costing
-              </Link>
-
-              <Link
-                href="/engineer/reports"
-                className="block rounded-lg px-3 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
-              >
-                Reports
-              </Link>
             </div>
           </nav>
         </aside>
