@@ -1,5 +1,6 @@
 import { CalculationType } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getCurrentEngineer, unauthorizedResponse } from "@/lib/auth";
 import { calculateCalculationResult } from "@/lib/project/quantityEngine";
 
 type RouteProps = {
@@ -21,6 +22,7 @@ export async function GET(
   _request: Request,
   { params }: RouteProps,
 ) {
+  if (!(await getCurrentEngineer())) return unauthorizedResponse();
   const { id, type } = await params;
 
   if (!isCalculationType(type)) {
@@ -59,6 +61,7 @@ export async function PUT(
   request: Request,
   { params }: RouteProps,
 ) {
+  if (!(await getCurrentEngineer())) return unauthorizedResponse();
   const { id, type } = await params;
 
   if (!isCalculationType(type)) {

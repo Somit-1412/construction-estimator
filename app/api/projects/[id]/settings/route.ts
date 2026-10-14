@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { getCurrentEngineer, unauthorizedResponse } from "@/lib/auth";
 import { normalizeEstimateSettings } from "@/lib/project/estimateSettings";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await getCurrentEngineer())) return unauthorizedResponse();
   const { id } = await params;
   const project = await prisma.project.findUnique({ where: { id }, select: { id: true, estimateSettings: true } });
   if (!project) return Response.json({ error: "Project not found." }, { status: 404 });
@@ -9,6 +11,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await getCurrentEngineer())) return unauthorizedResponse();
   const { id } = await params;
   const project = await prisma.project.findUnique({ where: { id }, select: { id: true } });
   if (!project) return Response.json({ error: "Project not found." }, { status: 404 });

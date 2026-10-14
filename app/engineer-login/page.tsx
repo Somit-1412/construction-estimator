@@ -1,0 +1,10 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+
+export default function EngineerLoginPage() {
+  const router = useRouter(); const [email,setEmail]=useState(""); const [password,setPassword]=useState(""); const [error,setError]=useState(""); const [loading,setLoading]=useState(false);
+  async function submit(event: FormEvent) { event.preventDefault(); setError(""); setLoading(true); try { const r=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})}); const d=await r.json(); if(!r.ok)throw new Error(d.error||"Unable to sign in."); router.replace("/engineer"); router.refresh(); } catch(e){setError(e instanceof Error?e.message:"Unable to sign in.");} finally{setLoading(false);} }
+  return <main className="min-h-screen blueprint-grid flex items-center justify-center px-6 py-12"><div className="w-full max-w-md"><div className="mb-8"><div className="engineering-mark">CE</div><p className="mt-6 text-xs font-bold uppercase tracking-[.22em] text-blue-700">Private engineer workspace</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Engineer sign in</h1><p className="mt-3 text-sm leading-6 text-slate-600">Access drawings, calculations, specifications, costing and issued reports.</p></div><form onSubmit={submit} className="engineering-card space-y-5 p-7"><label><span className="field-label">Email</span><input className="field-input" type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label><span className="field-label">Password</span><input className="field-input" type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label>{error&&<div className="alert-error">{error}</div>}<button disabled={loading} className="primary-button w-full">{loading?"Signing in…":"Sign in"}</button><p className="text-xs leading-5 text-slate-500">Credentials are configured on the server. Passwords are stored as salted hashes.</p></form></div></main>;
+}

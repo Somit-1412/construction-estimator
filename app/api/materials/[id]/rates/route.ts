@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getCurrentEngineer, unauthorizedResponse } from "@/lib/auth";
 
 const RATE_PATTERN = /^\d+(?:\.\d{1,2})?$/;
 
@@ -7,6 +8,7 @@ type RouteProps = {
 };
 
 export async function GET(_request: Request, { params }: RouteProps) {
+  if (!(await getCurrentEngineer())) return unauthorizedResponse();
   const { id } = await params;
 
   const material = await prisma.material.findUnique({
@@ -27,6 +29,7 @@ export async function GET(_request: Request, { params }: RouteProps) {
 }
 
 export async function POST(request: Request, { params }: RouteProps) {
+  if (!(await getCurrentEngineer())) return unauthorizedResponse();
   const { id } = await params;
 
   const material = await prisma.material.findUnique({

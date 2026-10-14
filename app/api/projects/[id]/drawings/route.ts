@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { prisma } from "@/lib/prisma";
+import { getCurrentEngineer } from "@/lib/auth";
 import { S3_BUCKET, s3 } from "@/lib/s3";
 
 const ALLOWED_TYPES = new Set([
@@ -18,14 +20,20 @@ export async function POST(
 
   const project = await prisma.project.findUnique({
     where: { id },
+    select: { id: true, submissionTokenHash: true },
   });
 
+  const submissionToken = request.headers.get("x-submission-token");
+  const engineer = await getCurrentEngineer();
+  const tokenHash = submissionToken ? createHash("sha256").update(submissionToken).digest("hex") : null;
   if (!project) {
     return Response.json(
       { error: "Project not found." },
       { status: 404 },
     );
   }
+
+  if (!engineer && (!tokenHash || tokenHash !== project.submissionTokenHash)) return Response.json({ error: "Valid submission access is required." }, { status: 401 });
 
   const formData = await request.formData();
   const file = formData.get("file");

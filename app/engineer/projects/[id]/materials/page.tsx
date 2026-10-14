@@ -7,9 +7,14 @@ export default async function ProjectMaterialsPage({ params }: { params: Promise
   const { id } = await params;
   const project = await prisma.project.findUnique({
     where: { id },
-    select: { id: true, projectName: true, estimateSettings: true, calculations: { select: { type: true, inputs: true, results: true } } },
+    select: { id: true, projectName: true, estimateSettings: true, estimate: { select: { snapshot: true, finalizedAt: true } }, calculations: { select: { type: true, inputs: true, results: true } } },
   });
   if (!project) notFound();
+
+  if (project.estimate?.finalizedAt) {
+    const snapshot = project.estimate.snapshot as any;
+    return <div className="space-y-7"><div><Link href={`/engineer/projects/${id}`} className="back-link">← Back to Project</Link><div className="page-kicker">Issued revision</div><h1 className="page-title">Project Materials</h1><p className="page-subtitle">Materials captured in the finalized estimate. These values are frozen to the issued revision.</p></div><section className="engineering-card p-6"><div className="flex items-center justify-between"><h2 className="section-title">Finalized material quantities</h2><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Issued</span></div><div className="mt-5 overflow-x-auto"><table className="data-table"><thead><tr><th>Material</th><th>Quantity</th><th>Rate</th><th>Cost</th></tr></thead><tbody>{(snapshot.materials ?? []).map((item:any)=><tr key={item.materialName}><td>{item.materialName}</td><td>{Number(item.quantity).toFixed(3)} {item.unit}</td><td>₹{Number(item.rate).toFixed(2)}</td><td>₹{Number(item.cost).toFixed(2)}</td></tr>)}</tbody></table></div></section></div>;
+  }
 
   const materials = await prisma.material.findMany({
     orderBy: { name: "asc" },

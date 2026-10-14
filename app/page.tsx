@@ -1,233 +1,291 @@
+import Image from "next/image";
 import Link from "next/link";
+
+const features = [
+  [
+    "01",
+    "Drawing-led estimation",
+    "Your building drawings are reviewed before quantities are prepared.",
+  ],
+  [
+    "02",
+    "Engineering calculations",
+    "Excavation, concrete, reinforcement, masonry, plaster, flooring and finishing quantities are structured by work item.",
+  ],
+  [
+    "03",
+    "Material & labour costing",
+    "Project-specific specifications, current rates and labour inputs are brought together into one estimate.",
+  ],
+  [
+    "04",
+    "Issued estimate",
+    "A finalized revision records the values used for the estimate so later rate changes do not silently rewrite it.",
+  ],
+];
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
-      {/* Header */}
-      <header className="border-b border-zinc-800">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+    <main className="min-h-screen blueprint-grid text-slate-900">
+      <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-2 md:px-8">
           <Link
             href="/"
-            className="text-xl font-semibold tracking-tight"
+            className="flex items-center"
           >
-            Construction Estimator
+            <Image
+              src="/Estimex_logo.jpeg"
+              alt="Estimex — Civil Estimation Made Simple"
+              width={420}
+              height={420}
+              className="h-24 w-24 object-contain"
+              priority
+            />
           </Link>
 
           <Link
             href="/submit"
-            className="rounded-md bg-white px-5 py-2.5 text-sm font-medium text-zinc-950 transition hover:bg-zinc-200"
+            className="primary-button"
           >
-            Get Estimate
+            Start an estimate
           </Link>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="border-b border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-24 lg:py-32">
-          <div className="max-w-3xl">
-            <p className="mb-5 text-sm font-medium uppercase tracking-[0.2em] text-zinc-500">
-              Professional Construction Estimation
+      <section className="overflow-hidden">
+        <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 md:px-8 lg:grid-cols-[1.1fr_.9fr] lg:items-center lg:py-28">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[.24em] text-blue-700">
+              Professional construction estimation
             </p>
 
-            <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-              Get a detailed construction estimate based on your building plan.
+            <h1 className="mt-5 max-w-4xl text-5xl font-extrabold leading-[1.02] tracking-[-.05em] text-slate-950 sm:text-6xl">
+              From building drawing to a structured construction estimate.
             </h1>
 
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-400">
-              Submit your project details and building drawings. Our engineer
-              reviews the drawings, performs the required quantity
-              calculations, and prepares a detailed material and cost estimate.
+            <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-600">
+              Submit your project information and drawings. An engineer reviews
+              the work, prepares project-specific quantities, applies material
+              and labour rates, and issues a detailed estimate.
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/submit"
-                className="rounded-md bg-white px-6 py-3 text-center text-sm font-medium text-zinc-950 transition hover:bg-zinc-200"
+                className="primary-button text-center"
               >
-                Start Your Estimate
+                Submit your project
               </Link>
 
               <a
                 href="#process"
-                className="rounded-md border border-zinc-700 px-6 py-3 text-center text-sm font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-900"
+                className="secondary-button text-center"
               >
-                How It Works
+                See the process
               </a>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3 text-xs font-semibold text-slate-500">
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-2">
+                Drawing review
+              </span>
+
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-2">
+                Quantity calculation
+              </span>
+
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-2">
+                Cost report
+              </span>
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="engineering-card relative overflow-hidden p-6 md:p-8">
+              <div className="absolute right-0 top-0 h-32 w-32 border-b border-l border-blue-100 bg-blue-50/60" />
+
+              <div className="relative">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[.18em] text-slate-500">
+                      Estimate workflow
+                    </p>
+
+                    <p className="mt-1 font-bold">
+                      Residential project
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-bold text-amber-700">
+                    ENGINEERED
+                  </span>
+                </div>
+
+                <div className="mt-7 space-y-5">
+                  {[
+                    "Building drawing",
+                    "Quantity schedule",
+                    "Material specification",
+                    "Cost estimate",
+                  ].map((item, i) => (
+                    <div
+                      key={item}
+                      className="flex items-center gap-4"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-xs font-extrabold text-blue-700">
+                        0{i + 1}
+                      </div>
+
+                      <div className="h-px flex-1 bg-slate-200" />
+
+                      <span className="w-40 text-right text-sm font-semibold text-slate-700">
+                        {item}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Issued estimate
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-slate-800">
+                        Revision controlled
+                      </p>
+                    </div>
+
+                    <span className="text-2xl font-black text-blue-800">
+                      ₹ —
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-xs leading-5 text-slate-500">
+                    The final value is built from the project&apos;s saved
+                    calculations, specifications, rates and labour schedule.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* What you receive */}
-      <section className="border-b border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-20">
+      <section
+        id="process"
+        className="border-y border-slate-200 bg-white"
+      >
+        <div className="mx-auto max-w-7xl px-5 py-20 md:px-8">
           <div className="max-w-2xl">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-zinc-500">
-              What you receive
+            <p className="text-xs font-extrabold uppercase tracking-[.2em] text-blue-700">
+              How it works
             </p>
 
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-              A structured construction estimate
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight">
+              A technical workflow, presented simply.
             </h2>
 
-            <p className="mt-4 text-zinc-400">
-              The estimate is prepared from the project information and
-              drawings submitted for review.
+            <p className="mt-4 text-slate-600">
+              The customer provides the project inputs. The engineering
+              workspace handles the technical estimation process.
             </p>
           </div>
 
-          <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <FeatureCard
-              title="Quantity Estimation"
-              description="Quantities for excavation, concrete, brickwork, plaster, flooring, reinforcement and other construction items."
-            />
+          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            {features.map(([n, t, d]) => (
+              <article
+                key={n}
+                className="engineering-card p-6"
+              >
+                <span className="text-xs font-black text-orange-600">
+                  {n}
+                </span>
 
-            <FeatureCard
-              title="Material Breakdown"
-              description="Estimated quantities of major construction materials required for the project."
-            />
+                <h3 className="mt-6 font-bold text-slate-900">
+                  {t}
+                </h3>
 
-            <FeatureCard
-              title="Cost Estimation"
-              description="Material and applicable construction costs calculated using the project's estimation data."
-            />
-
-            <FeatureCard
-              title="Engineer Review"
-              description="Submitted drawings are reviewed by an engineer before the final estimate is prepared."
-            />
-
-            <FeatureCard
-              title="Detailed Report"
-              description="A structured report containing the calculated quantities, materials and estimated costs."
-            />
-
-            <FeatureCard
-              title="Project-Based Estimate"
-              description="The estimate is prepared specifically for the dimensions and construction information provided for your project."
-            />
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  {d}
+                </p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Process */}
-      <section id="process" className="border-b border-zinc-800">
-        <div className="mx-auto max-w-7xl px-6 py-20">
-          <div className="max-w-2xl">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-zinc-500">
-              Process
-            </p>
-
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-              From drawing to estimate
-            </h2>
-          </div>
-
-          <div className="mt-12 grid gap-8 md:grid-cols-4">
-            <ProcessStep
-              number="01"
-              title="Submit"
-              description="Enter your project details and upload your building drawings."
-            />
-
-            <ProcessStep
-              number="02"
-              title="Review"
-              description="An engineer reviews the submitted drawings and project information."
-            />
-
-            <ProcessStep
-              number="03"
-              title="Calculate"
-              description="Required quantities, materials and construction costs are calculated."
-            />
-
-            <ProcessStep
-              number="04"
-              title="Receive"
-              description="The completed estimate and report are made available to you."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
       <section>
-        <div className="mx-auto max-w-7xl px-6 py-24">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-12 text-center sm:px-12">
-            <h2 className="text-3xl font-semibold tracking-tight">
-              Ready to estimate your project?
-            </h2>
+        <div className="mx-auto max-w-7xl px-5 py-20 md:px-8">
+          <div className="engineering-card overflow-hidden">
+            <div className="grid lg:grid-cols-[1fr_.7fr]">
+              <div className="p-8 md:p-12">
+                <p className="text-xs font-extrabold uppercase tracking-[.2em] text-blue-700">
+                  Ready when you are
+                </p>
 
-            <p className="mx-auto mt-4 max-w-xl text-zinc-400">
-              Submit your project information and building drawings to begin
-              the estimation process.
-            </p>
+                <h2 className="mt-3 text-3xl font-extrabold tracking-tight">
+                  Start with the building information you already have.
+                </h2>
 
-            <Link
-              href="/submit"
-              className="mt-8 inline-block rounded-md bg-white px-6 py-3 text-sm font-medium text-zinc-950 transition hover:bg-zinc-200"
-            >
-              Start Your Estimate
-            </Link>
+                <p className="mt-4 max-w-xl text-slate-600">
+                  Upload the available drawings and provide the basic project
+                  details. The engineering review happens after submission.
+                </p>
+
+                <Link
+                  href="/submit"
+                  className="primary-button mt-7 inline-block"
+                >
+                  Begin project submission
+                </Link>
+              </div>
+
+              <div className="min-h-56 blueprint-grid border-t border-slate-200 lg:border-l lg:border-t-0">
+                <div className="h-full p-8">
+                  <div className="h-full rounded-xl border border-blue-100 bg-white/70 p-5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                      Drawing reference
+                    </p>
+
+                    <div className="mt-4 grid grid-cols-6 gap-2 opacity-60">
+                      {Array.from({ length: 36 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="h-5 border border-blue-100"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-zinc-800">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>Construction Estimator</p>
-          <p>Professional construction quantity and cost estimation.</p>
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-6 md:flex-row md:items-center md:justify-between md:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/Estimex_logo.jpeg"
+              alt="Estimex"
+              width={160}
+              height={160}
+              className="h-12 w-auto object-contain"
+            />
+
+            <span className="text-xs text-slate-500">
+              Civil Estimation Made Simple
+            </span>
+          </div>
+
+          <span className="text-xs text-slate-500">
+            Engineering-led quantity and cost estimation.
+          </span>
         </div>
       </footer>
     </main>
-  );
-}
-
-function FeatureCard({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-      <h3 className="text-base font-medium text-white">
-        {title}
-      </h3>
-
-      <p className="mt-3 text-sm leading-6 text-zinc-400">
-        {description}
-      </p>
-    </div>
-  );
-}
-
-function ProcessStep({
-  number,
-  title,
-  description,
-}: {
-  number: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div>
-      <p className="text-sm font-medium text-zinc-600">
-        {number}
-      </p>
-
-      <h3 className="mt-3 text-lg font-medium text-white">
-        {title}
-      </h3>
-
-      <p className="mt-2 text-sm leading-6 text-zinc-400">
-        {description}
-      </p>
-    </div>
   );
 }

@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  projectName String
+  clientName  String
+  clientEmail String
+  location    String
+
+  status ProjectStatus @default(SUBMITTED)
+  submissionTokenHash String? @unique
+  estimateSettings Json?
+
+  drawings     Drawing[]
+  calculations Calculation[]
+  estimate Estimate?
+  clientAccess ClientAccess[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Engineer {
+  id           String            @id @default(cuid())
+  email        String            @unique
+  name         String
+  passwordHash String
+  active       Boolean           @default(true)
+  sessions     EngineerSession[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
+
+model EngineerSession {
+  id         String   @id @default(cuid())
+  engineerId String
+  engineer   Engineer @relation(fields: [engineerId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([engineerId])
+  @@index([expiresAt])
+}
+
+model Drawing {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  originalName String
+  storageKey   String   @unique
+  mimeType     String
+  sizeBytes    Int
+
+  uploadedAt DateTime @default(now())
+}
+
+model Calculation {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  type CalculationType
+
+  inputs  Json
+  results Json
+
+  calculatedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([projectId, type])
+}
+
+model Estimate {
+  id           String   @id @default(cuid())
+  projectId    String   @unique
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  revision     Int      @default(1)
+  snapshot     Json
+  materialCost Decimal  @db.Decimal(14, 2)
+  labourCost   Decimal  @db.Decimal(14, 2)
+  totalCost    Decimal  @db.Decimal(14, 2)
+  finalizedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ClientAccess {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model Material {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  category  String
+  unit      MaterialUnit
+  rates     MaterialRate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MaterialRate {
+  id         String   @id @default(cuid())
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  rate          Decimal  @db.Decimal(12, 2)
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+
+  createdAt DateTime @default(now())
+}
+
+enum CalculationType {
+  EXCAVATION
+  PCC
+  FOOTING
+  FOOTING_REINFORCEMENT
+  FOOTING_SHUTTERING
+  COLUMN_CONCRETE
+  COLUMN_SHUTTERING
+  BEAM_CONCRETE
+  BEAM_REINFORCEMENT
+  BEAM_BBS
+  BEAM_SHUTTERING
+  SLAB_CONCRETE
+  SLAB_REINFORCEMENT
+  SLAB_SHUTTERING
+  BRICKWORK
+  FOUNDATION_PLINTH_BRICKWORK
+  DPC
+  LINTEL
+  LINTEL_REINFORCEMENT
+  LINTEL_SHUTTERING
+  FILLING
+  INTERNAL_PLASTER
+  EXTERNAL_PLASTER
+  FLOORING
+  FLOORING_MATERIALS
+  DOORS
+  WINDOWS
+  VENTILATORS
+  PAINTING
+}
+
+enum MaterialUnit {
+  BAG
+  CUBIC_METER
+  NUMBER
+  KILOGRAM
+  SQUARE_METER
+  LITRE
+}
+
+enum ProjectStatus {
+  SUBMITTED
+  PAYMENT_RECEIVED
+  IN_PROGRESS
+  COMPLETED
+}

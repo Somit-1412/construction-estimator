@@ -8,42 +8,16 @@ export default function SubmitPage() {
   const router = useRouter();
 
   const [projectName, setProjectName] = useState("");
-  const [clientName, setClientName] = useState("");
-  const [clientEmail, setClientEmail] = useState("");
   const [location, setLocation] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  function handleFilesChange(
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) {
-    setError("");
-
-    const selectedFiles = Array.from(
-      event.target.files ?? [],
-    );
-
-    setFiles(selectedFiles);
-  }
-
-  function formatFileSize(bytes: number) {
-    if (bytes < 1024 * 1024) {
-      return `${(bytes / 1024).toFixed(1)} KB`;
-    }
-
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  }
-
-  async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     setError("");
 
-    if (files.length === 0) {
+    if (!files.length) {
       setError("Please upload at least one drawing.");
       return;
     }
@@ -51,58 +25,52 @@ export default function SubmitPage() {
     setSubmitting(true);
 
     try {
-      // Step 1: Create project
-      const projectResponse = await fetch("/api/projects", {
+      const response = await fetch("/api/projects", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           projectName,
-          clientName,
-          clientEmail,
           location,
         }),
       });
 
-      const projectData = await projectResponse.json();
+      const project = await response.json();
 
-      if (!projectResponse.ok) {
-        throw new Error(
-          projectData.error || "Unable to create project.",
-        );
+      if (!response.ok) {
+        throw new Error(project.error || "Unable to create project.");
       }
 
-      // Step 2: Upload drawings
       for (const file of files) {
         const formData = new FormData();
         formData.append("file", file);
 
         const drawingResponse = await fetch(
-          `/api/projects/${projectData.id}/drawings`,
+          `/api/projects/${project.id}/drawings`,
           {
             method: "POST",
+            headers: {
+              "x-submission-token": project.submissionToken,
+            },
             body: formData,
           },
         );
 
-        const drawingData = await drawingResponse.json();
+        const drawing = await drawingResponse.json();
 
         if (!drawingResponse.ok) {
           throw new Error(
-            drawingData.error ||
-              `Unable to upload ${file.name}.`,
+            drawing.error || `Unable to upload ${file.name}.`,
           );
         }
       }
 
-      // Payment will be added here later.
-
       router.push("/submit/success");
-    } catch (err) {
+    } catch (error) {
       setError(
-        err instanceof Error
-          ? err.message
+        error instanceof Error
+          ? error.message
           : "Something went wrong while submitting the project.",
       );
     } finally {
@@ -111,173 +79,124 @@ export default function SubmitPage() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
-      <header className="border-b border-zinc-800">
-        <div className="mx-auto flex max-w-4xl items-center px-6 py-5">
-          <Link
-            href="/"
-            className="text-xl font-semibold tracking-tight"
-          >
-            Construction Estimator
+    <main className="min-h-screen blueprint-grid">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4 md:px-8">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="engineering-mark small">CE</div>
+            <span className="font-extrabold">Construction Estimator</span>
           </Link>
+
+          <span className="text-xs font-semibold text-slate-500">
+            Project submission
+          </span>
         </div>
       </header>
 
-      <div className="mx-auto max-w-3xl px-6 py-12">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-zinc-500">
-            Project Submission
+      <div className="mx-auto max-w-4xl px-5 py-12 md:px-8">
+        <div className="max-w-2xl">
+          <p className="text-xs font-extrabold uppercase tracking-[.22em] text-blue-700">
+            Step 1 · Project intake
           </p>
 
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-            Submit your construction project
-          </h1>
+          <h1 className="page-title">Tell us about the project</h1>
 
-          <p className="mt-3 text-sm leading-6 text-zinc-400">
-            Enter your project details and upload the building
-            drawings required for estimation.
+          <p className="page-subtitle">
+            Provide the basic project information and upload the building
+            drawings available to you. The technical estimate is prepared in
+            the engineering workspace after submission.
           </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="mt-10 space-y-8"
-        >
-          {/* Project details */}
-          <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-            <h2 className="text-lg font-semibold">
-              Project Details
-            </h2>
-
-            <div className="mt-6 space-y-5">
+        <form onSubmit={handleSubmit} className="mt-9 space-y-6">
+          <section className="engineering-card p-6 md:p-8">
+            <div className="section-heading">
               <div>
-                <label
-                  htmlFor="projectName"
-                  className="block text-sm font-medium text-zinc-300"
-                >
-                  Project Name
-                </label>
+                <h2>Project information</h2>
+                <p>
+                  Your account information is already associated with this
+                  project.
+                </p>
+              </div>
+
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                01
+              </span>
+            </div>
+
+            <div className="mt-7 grid gap-5 md:grid-cols-2">
+              <label>
+                <span className="field-label">Project name</span>
 
                 <input
-                  id="projectName"
-                  type="text"
+                  className="field-input"
                   value={projectName}
-                  onChange={(event) =>
-                    setProjectName(event.target.value)
-                  }
-                  placeholder="e.g. Residential Building"
+                  onChange={(event) => setProjectName(event.target.value)}
+                  placeholder="Residential building"
                   required
-                  className="mt-2 w-full rounded-md border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-zinc-500"
                 />
-              </div>
+              </label>
 
-              <div>
-                <label
-                  htmlFor="clientName"
-                  className="block text-sm font-medium text-zinc-300"
-                >
-                  Your Name
-                </label>
+              <label>
+                <span className="field-label">Project location</span>
 
                 <input
-                  id="clientName"
-                  type="text"
-                  value={clientName}
-                  onChange={(event) =>
-                    setClientName(event.target.value)
-                  }
-                  placeholder="Full name"
-                  required
-                  className="mt-2 w-full rounded-md border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-zinc-500"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="clientEmail"
-                  className="block text-sm font-medium text-zinc-300"
-                >
-                  Email Address
-                </label>
-
-                <input
-                  id="clientEmail"
-                  type="email"
-                  value={clientEmail}
-                  onChange={(event) =>
-                    setClientEmail(event.target.value)
-                  }
-                  placeholder="you@example.com"
-                  required
-                  className="mt-2 w-full rounded-md border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-zinc-500"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="location"
-                  className="block text-sm font-medium text-zinc-300"
-                >
-                  Project Location
-                </label>
-
-                <input
-                  id="location"
-                  type="text"
+                  className="field-input"
                   value={location}
-                  onChange={(event) =>
-                    setLocation(event.target.value)
-                  }
+                  onChange={(event) => setLocation(event.target.value)}
                   placeholder="City / project location"
                   required
-                  className="mt-2 w-full rounded-md border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-zinc-500"
                 />
-              </div>
+              </label>
             </div>
           </section>
 
-          {/* Drawings */}
-          <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-            <h2 className="text-lg font-semibold">
-              Building Drawings
-            </h2>
+          <section className="engineering-card p-6 md:p-8">
+            <div className="section-heading">
+              <div>
+                <h2>Building drawings</h2>
 
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Upload the architectural or structural drawings
-              for your project.
-            </p>
+                <p>
+                  Upload architectural, structural or other relevant drawings
+                  available for review.
+                </p>
+              </div>
 
-            <div className="mt-6 rounded-lg border border-dashed border-zinc-700 bg-zinc-950 p-5">
+              <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">
+                02
+              </span>
+            </div>
+
+            <div className="mt-7 rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-8 text-center">
               <input
+                id="drawings"
                 type="file"
                 multiple
                 accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                onChange={handleFilesChange}
-                className="block w-full text-sm text-zinc-300
-                  file:mr-4 file:rounded-md file:border-0
-                  file:bg-zinc-700 file:px-4 file:py-2
-                  file:text-sm file:font-medium file:text-white
-                  hover:file:bg-zinc-600"
+                onChange={(event) =>
+                  setFiles(Array.from(event.target.files ?? []))
+                }
+                className="mx-auto block max-w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-700 file:px-4 file:py-2.5 file:text-sm file:font-bold file:text-white"
               />
 
-              <p className="mt-3 text-xs text-zinc-500">
-                PDF, JPG, JPEG or PNG · Maximum 10 MB per file
+              <p className="mt-4 text-xs text-slate-500">
+                PDF, JPG, JPEG or PNG · maximum 10 MB per file
               </p>
 
               {files.length > 0 && (
-                <div className="mt-5 space-y-2">
+                <div className="mx-auto mt-5 max-w-xl space-y-2 text-left">
                   {files.map((file) => (
                     <div
                       key={`${file.name}-${file.size}`}
-                      className="flex items-center justify-between gap-4 rounded-md border border-zinc-800 bg-zinc-900 px-4 py-3"
+                      className="flex justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm"
                     >
-                      <p className="truncate text-sm text-zinc-200">
+                      <span className="truncate font-medium">
                         {file.name}
-                      </p>
+                      </span>
 
-                      <p className="shrink-0 text-xs text-zinc-500">
-                        {formatFileSize(file.size)}
-                      </p>
+                      <span className="ml-4 shrink-0 text-slate-500">
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -285,23 +204,21 @@ export default function SubmitPage() {
             </div>
           </section>
 
-          {error && (
-            <div className="rounded-md border border-red-900/50 bg-red-950/20 px-4 py-3">
-              <p className="text-sm text-red-400">
-                {error}
-              </p>
-            </div>
-          )}
+          {error && <div className="alert-error">{error}</div>}
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-md bg-white px-6 py-3 text-sm font-medium text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {submitting
-              ? "Submitting Project..."
-              : "Continue"}
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs leading-5 text-slate-500">
+              Your account details will be associated with this project.
+            </p>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="primary-button"
+            >
+              {submitting ? "Submitting project…" : "Submit project"}
+            </button>
+          </div>
         </form>
       </div>
     </main>
