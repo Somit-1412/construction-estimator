@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentEngineer } from "@/lib/auth";
+import { SessionGuard } from "@/components/SessionGuard";
 
 export default async function EngineerLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const engineer = await getCurrentEngineer();
@@ -8,6 +9,7 @@ export default async function EngineerLayout({ children }: Readonly<{ children: 
 
   return (
     <div className="min-h-screen bg-[#f6f8fb] text-slate-900">
+      <SessionGuard type="engineer" />
       <div className="flex min-h-screen">
         <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white md:flex md:flex-col">
           <div className="border-b border-slate-200 px-6 py-5">

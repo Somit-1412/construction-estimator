@@ -45,7 +45,31 @@ export default function MaterialsPage() {
   }
 
   useEffect(() => {
-    void loadMaterials();
+    let ignore = false;
+    async function fetchMaterials() {
+      try {
+        const response = await fetch("/api/materials", { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Unable to load materials.");
+        }
+        if (!ignore) {
+          setMaterials(data);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err instanceof Error ? err.message : "Unable to load materials.");
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    }
+    void fetchMaterials();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   function formatUnit(unit: string) {

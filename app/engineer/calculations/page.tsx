@@ -168,44 +168,25 @@ export default function CalculationsPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {category.items.map((item) =>
-                item.href ? (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 text-left transition hover:border-zinc-700 hover:bg-zinc-800"
-                  >
-                    <h3 className="font-medium">
-                      {item.name}
-                    </h3>
+              {category.items.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 text-left transition hover:border-zinc-700 hover:bg-zinc-800"
+                >
+                  <h3 className="font-medium text-white">
+                    {item.name}
+                  </h3>
 
-                    <p className="mt-2 text-sm text-zinc-400">
-                      {item.description}
-                    </p>
+                  <p className="mt-2 text-sm text-zinc-400">
+                    {item.description}
+                  </p>
 
-                    <p className="mt-4 text-sm text-zinc-500">
-                      Open calculation →
-                    </p>
-                  </Link>
-                ) : (
-                  <div
-                    key={item.name}
-                    className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 text-left"
-                  >
-                    <h3 className="font-medium">
-                      {item.name}
-                    </h3>
-
-                    <p className="mt-2 text-sm text-zinc-400">
-                      {item.description}
-                    </p>
-
-                    <p className="mt-4 text-sm text-zinc-600">
-                      Coming soon
-                    </p>
-                  </div>
-                )
-              )}
+                  <p className="mt-4 text-sm text-zinc-500">
+                    Open calculation →
+                  </p>
+                </Link>
+              ))}
             </div>
           </section>
         ))}

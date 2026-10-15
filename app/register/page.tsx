@@ -66,12 +66,21 @@ export default function RegisterPage() {
             <span className="font-extrabold">Construction Estimator</span>
           </Link>
 
-          <Link
-            href="/login"
-            className="text-sm font-semibold text-blue-700 hover:text-blue-800"
-          >
-            Sign in
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/contact"
+              className="text-sm font-semibold text-slate-600 hover:text-blue-700 transition"
+            >
+              Contact Us
+            </Link>
+
+            <Link
+              href="/login"
+              className="text-sm font-semibold text-blue-700 hover:text-blue-800"
+            >
+              Sign in
+            </Link>
+          </div>
         </div>
       </header>
 

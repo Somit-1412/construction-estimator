@@ -46,6 +46,8 @@ export type EstimateSettings = {
     internalCoverageM2PerLitre: number;
     externalCoverageM2PerLitre: number;
     coats: number;
+    internalLitresPerM2?: number;
+    externalLitresPerM2?: number;
   };
 
   labour: Array<{
@@ -113,6 +115,8 @@ export const emptyEstimateSettings: EstimateSettings = {
     internalCoverageM2PerLitre: 0,
     externalCoverageM2PerLitre: 0,
     coats: 0,
+    internalLitresPerM2: 0,
+    externalLitresPerM2: 0,
   },
 
   labour: [
@@ -178,6 +182,27 @@ function positive(value: unknown): number {
   const n = Number(value);
 
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+export function parsePaintingRate(
+  coverageValue: unknown,
+  legacyLitresPerM2Value: unknown
+): number {
+  const directCoverage = positive(coverageValue);
+  if (directCoverage > 0) return directCoverage;
+
+  const legacyValue = positive(legacyLitresPerM2Value);
+  if (legacyValue <= 0) return 0;
+
+  // If legacy value is < 1 (e.g., 0.12 L/m²), it genuinely represents consumption in L/m².
+  // Coverage in m²/L is the mathematical inverse: 1 / consumption.
+  if (legacyValue < 1) {
+    return Math.round((1 / legacyValue) * 100) / 100;
+  }
+
+  // If legacy value is >= 1 (e.g., 15 or 16), the user entered coverage directly (m²/L)
+  // despite the previous mislabeled input "litres / m²".
+  return legacyValue;
 }
 
 function asRecord(value: unknown): UnknownRecord {
@@ -355,21 +380,33 @@ export function normalizeEstimateSettings(
       },
     },
 
-    painting: {
-      internalCoverageM2PerLitre:
-        positive(
-          painting.internalCoverageM2PerLitre
-        ),
+    painting: (() => {
+      const internalCoverage = parsePaintingRate(
+        painting.internalCoverageM2PerLitre,
+        painting.internalLitresPerM2
+      );
+      const externalCoverage = parsePaintingRate(
+        painting.externalCoverageM2PerLitre,
+        painting.externalLitresPerM2
+      );
+      const coats =
+        positive(painting.coats) ||
+        (internalCoverage > 0 || externalCoverage > 0 ? 2 : 0);
 
-      externalCoverageM2PerLitre:
-        positive(
-          painting.externalCoverageM2PerLitre
-        ),
-
-      coats: positive(
-        painting.coats
-      ),
-    },
+      return {
+        internalCoverageM2PerLitre: internalCoverage,
+        externalCoverageM2PerLitre: externalCoverage,
+        coats,
+        internalLitresPerM2:
+          internalCoverage > 0
+            ? Math.round((coats / internalCoverage) * 1000) / 1000
+            : 0,
+        externalLitresPerM2:
+          externalCoverage > 0
+            ? Math.round((coats / externalCoverage) * 1000) / 1000
+            : 0,
+      };
+    })(),
 
     labour:
       emptyEstimateSettings.labour.map(

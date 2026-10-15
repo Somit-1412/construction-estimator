@@ -9,7 +9,26 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 const CUSTOMER_SESSION_COOKIE = "ce_customer_session";
-const SESSION_DAYS = 7;
+
+/** Absolute session lifetime: 7 days from login. Configurable via env. */
+const rawSessionDays = process.env.CUSTOMER_SESSION_DAYS;
+const parsedSessionDays = Number(rawSessionDays);
+const SESSION_DAYS =
+  rawSessionDays && !isNaN(parsedSessionDays) && parsedSessionDays > 0
+    ? parsedSessionDays
+    : 7;
+
+/**
+ * Inactivity timeout in minutes. After this period without a meaningful
+ * user action the session is invalidated server-side and the cookie cleared.
+ * Configurable via env. Default: 30 minutes.
+ */
+const rawInactivity = process.env.CUSTOMER_INACTIVITY_TIMEOUT_MINUTES;
+const parsedInactivity = Number(rawInactivity);
+const INACTIVITY_MINUTES =
+  rawInactivity && !isNaN(parsedInactivity) && parsedInactivity > 0
+    ? parsedInactivity
+    : 30;
 
 function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -95,6 +114,7 @@ export async function createCustomerSession(customerId: string) {
       customerId,
       tokenHash: hashToken(token),
       expiresAt,
+      lastActiveAt: new Date(),
     },
   });
 
@@ -110,23 +130,76 @@ export async function createCustomerSession(customerId: string) {
 }
 
 export async function destroyCustomerSession() {
-  const store = await cookies();
-  const token = store.get(CUSTOMER_SESSION_COOKIE)?.value;
+  try {
+    const store = await cookies();
+    const token = store.get(CUSTOMER_SESSION_COOKIE)?.value;
 
-  if (token) {
-    await prisma.customerSession.deleteMany({
-      where: {
-        tokenHash: hashToken(token),
-      },
-    });
+    if (token) {
+      await prisma.customerSession.deleteMany({
+        where: {
+          tokenHash: hashToken(token),
+        },
+      });
+    }
+
+    try {
+      store.delete({ name: CUSTOMER_SESSION_COOKIE, path: "/" });
+      store.set(CUSTOMER_SESSION_COOKIE, "", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 0,
+        expires: new Date(0),
+      });
+    } catch {
+      // In case cookie cannot be modified in the current context
+    }
+  } catch {
+    // Ignore error
+  }
+}
+
+/**
+ * Record a meaningful user action against the current session, resetting the
+ * inactivity clock. Only call this from explicit user-initiated write endpoints
+ * (project submission, payment verification, etc.) — NOT on passive page loads or background requests.
+ *
+ * An optional token may be passed directly if already retrieved in the request flow.
+ */
+export async function touchCustomerSession(token?: string): Promise<void> {
+  let sessionToken = token;
+  if (!sessionToken) {
+    try {
+      const store = await cookies();
+      sessionToken = store.get(CUSTOMER_SESSION_COOKIE)?.value;
+    } catch {
+      return;
+    }
   }
 
-  store.delete(CUSTOMER_SESSION_COOKIE);
+  if (!sessionToken) return;
+
+  try {
+    await prisma.customerSession.updateMany({
+      where: { tokenHash: hashToken(sessionToken) },
+      data: { lastActiveAt: new Date() },
+    });
+  } catch {
+    // Best-effort session touch
+  }
 }
 
 export async function getCurrentCustomer() {
-  const store = await cookies();
-  const token = store.get(CUSTOMER_SESSION_COOKIE)?.value;
+  let token: string | undefined;
+  let store: Awaited<ReturnType<typeof cookies>> | undefined;
+
+  try {
+    store = await cookies();
+    token = store.get(CUSTOMER_SESSION_COOKIE)?.value;
+  } catch {
+    return null;
+  }
 
   if (!token) {
     return null;
@@ -141,18 +214,39 @@ export async function getCurrentCustomer() {
     },
   });
 
+  const now = new Date();
+  const inactivityDeadline = new Date(
+    now.getTime() - INACTIVITY_MINUTES * 60 * 1000,
+  );
+
+  // Expire if: session not found, absolute lifetime exceeded, customer
+  // deactivated, or inactivity timeout exceeded.
   if (
     !session ||
-    session.expiresAt <= new Date() ||
-    !session.customer.active
+    session.expiresAt <= now ||
+    !session.customer.active ||
+    session.lastActiveAt <= inactivityDeadline
   ) {
-    await prisma.customerSession.deleteMany({
-      where: {
-        tokenHash: hashToken(token),
-      },
-    });
+    if (token) {
+      try {
+        await prisma.customerSession.deleteMany({
+          where: {
+            tokenHash: hashToken(token),
+          },
+        });
+      } catch {
+        // Ignore DB deletion errors during expired session cleanup
+      }
+    }
 
-    store.delete(CUSTOMER_SESSION_COOKIE);
+    if (store) {
+      try {
+        store.delete(CUSTOMER_SESSION_COOKIE);
+      } catch {
+        // In Server Components, response cookies cannot be modified during render.
+        // The session is already invalidated in the database above.
+      }
+    }
 
     return null;
   }
@@ -163,8 +257,15 @@ export async function getCurrentCustomer() {
 export function customerUnauthorizedResponse() {
   return Response.json(
     { error: "Customer authentication is required." },
-    { status: 401 },
+    {
+      status: 401,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    },
   );
 }
 
-export { CUSTOMER_SESSION_COOKIE };
+export { CUSTOMER_SESSION_COOKIE, INACTIVITY_MINUTES, SESSION_DAYS };

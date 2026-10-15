@@ -92,13 +92,19 @@ export default async function ProjectCalculationPage({ params }: PageProps) {
   if (!calculationType) notFound();
   const definition = definitions[calculationType];
 
-  const project = await prisma.project.findUnique({ where: { id }, select: { id: true, projectName: true } });
+  const [project, calculation, floors] = await Promise.all([
+    prisma.project.findUnique({ where: { id }, select: { id: true, projectName: true } }),
+    prisma.calculation.findUnique({
+      where: { projectId_type: { projectId: id, type: calculationType } },
+      select: { inputs: true, calculatedAt: true },
+    }),
+    prisma.floor.findMany({
+      where: { projectId: id },
+      orderBy: { level: "asc" },
+      select: { id: true, name: true, level: true, heightMeters: true },
+    }),
+  ]);
   if (!project) notFound();
-
-  const calculation = await prisma.calculation.findUnique({
-    where: { projectId_type: { projectId: project.id, type: calculationType } },
-    select: { inputs: true, calculatedAt: true },
-  });
 
   const initialInputs = calculation?.inputs && typeof calculation.inputs === "object"
     ? (calculation.inputs as CalculationInputs)
@@ -116,7 +122,15 @@ export default async function ProjectCalculationPage({ params }: PageProps) {
         </div>
       </div>
 
-      <CalculationPersistence projectId={project.id} type={calculationType} initialInputs={initialInputs}>
+      <CalculationPersistence
+        projectId={project.id}
+        type={calculationType}
+        initialInputs={initialInputs}
+        floors={floors.map((f) => ({
+          ...f,
+          heightMeters: Number(f.heightMeters),
+        }))}
+      >
         <div className="rounded-xl border border-zinc-800 bg-zinc-900">{definition.render()}</div>
       </CalculationPersistence>
     </div>

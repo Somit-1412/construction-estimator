@@ -132,6 +132,7 @@ import {
 
 import {
   calculateInternalPaintingArea,
+  calculateExternalPaintingArea,
 } from "@/lib/calculations/painting";
 
 import type {
@@ -147,7 +148,7 @@ import {
 
 export type CalculationResult = Record<
   string,
-  number | Record<string, number>
+  number | Record<string, unknown>
 >;
 
 const array = <T>(value: unknown): T[] =>
@@ -163,7 +164,7 @@ const input = (
     ? (value as Record<string, unknown>)
     : {};
 
-export function calculateCalculationResult(
+function calculateSingleFloorResult(
   type: CalculationType,
   rawInputs: unknown
 ): CalculationResult {
@@ -728,16 +729,56 @@ export function calculateCalculationResult(
     }
 
     case "PAINTING": {
-      const area =
-        calculateInternalPaintingArea(
-          Number(
-            data.internalPlasterNetArea
-          ) || 0
-        );
+      const internalArea = calculateInternalPaintingArea(
+        Number(data.internalPlasterNetArea) || 0
+      );
+      const externalArea = calculateExternalPaintingArea(
+        Number(data.externalPlasterNetArea) || 0
+      );
 
-      return { area };
+      return {
+        area: internalArea + externalArea,
+        internalArea,
+        externalArea,
+      };
     }
   }
+}
+
+export function calculateCalculationResult(
+  type: CalculationType,
+  rawInputs: unknown
+): CalculationResult {
+  const data = input(rawInputs);
+
+  if (data.byFloor && typeof data.byFloor === "object") {
+    const byFloorMap = data.byFloor as Record<string, unknown>;
+    const floorKeys = Object.keys(byFloorMap);
+
+    if (floorKeys.length > 0) {
+      const perFloorResults: Record<string, CalculationResult> = {};
+      const aggregatedResult: CalculationResult = {};
+
+      for (const floorKey of floorKeys) {
+        const floorInput = byFloorMap[floorKey];
+        if (floorInput && typeof floorInput === "object") {
+          const singleResult = calculateSingleFloorResult(type, floorInput);
+          perFloorResults[floorKey] = singleResult;
+
+          for (const [k, v] of Object.entries(singleResult)) {
+            if (typeof v === "number") {
+              aggregatedResult[k] = ((aggregatedResult[k] as number) || 0) + v;
+            }
+          }
+        }
+      }
+
+      aggregatedResult.byFloor = perFloorResults;
+      return aggregatedResult;
+    }
+  }
+
+  return calculateSingleFloorResult(type, data);
 }
 
 function safe(
@@ -783,6 +824,17 @@ export type ProjectEstimate = {
   }>;
 
   totalMaterialCost: number;
+
+  floorBreakdown?: Array<{
+    floorLevel: number;
+    floorName: string;
+    workQuantities: Array<{
+      key: string;
+      label: string;
+      quantity: number;
+      unit: string;
+    }>;
+  }>;
 };
 
 export function buildProjectEstimate(
@@ -852,6 +904,15 @@ export function buildProjectEstimate(
 
     return 0;
   };
+
+  const paintingResult = results.get("PAINTING");
+  const internalPaintArea =
+    Number(paintingResult?.internalArea ?? paintingResult?.area ?? 0) ||
+    sumResult(["INTERNAL_PLASTER"], "netArea");
+
+  const externalPaintArea =
+    Number(paintingResult?.externalArea ?? 0) ||
+    sumResult(["EXTERNAL_PLASTER"], "netArea");
 
   const workQuantities = [
     {
@@ -1058,6 +1119,20 @@ export function buildProjectEstimate(
           "quantity"
         ),
       unit: "m³",
+    },
+
+    {
+      key: "internalPainting",
+      label: "Internal Painting",
+      quantity: internalPaintArea,
+      unit: "m²",
+    },
+
+    {
+      key: "externalPainting",
+      label: "External Painting",
+      quantity: externalPaintArea,
+      unit: "m²",
     },
   ].filter(
     (item) => item.quantity !== 0
@@ -1411,28 +1486,25 @@ export function buildProjectEstimate(
    * (paint area × number of coats)
    * / coverage per litre
    */
-  const internalPaintArea =
-    sumResult(
-      ["PAINTING"],
-      "area"
-    );
-
-  const paintQuantity =
-    settings.painting
-      .internalCoverageM2PerLitre > 0
-      ? (
-          internalPaintArea *
-          settings.painting.coats
-        ) /
-        settings.painting
-          .internalCoverageM2PerLitre
+  const internalPaintQuantity =
+    settings.painting.internalCoverageM2PerLitre > 0
+      ? (internalPaintArea * settings.painting.coats) /
+        settings.painting.internalCoverageM2PerLitre
       : 0;
+
+  const externalPaintQuantity =
+    settings.painting.externalCoverageM2PerLitre > 0
+      ? (externalPaintArea * settings.painting.coats) /
+        settings.painting.externalCoverageM2PerLitre
+      : 0;
+
+  const paintQuantity = internalPaintQuantity + externalPaintQuantity;
 
   addMaterial(
     "Paint",
     paintQuantity,
     "Litre",
-    "Painting coverage"
+    "Internal and external painting coverage"
   );
 
   const labourRows =
@@ -1506,7 +1578,7 @@ export function buildProjectEstimate(
           "painting"
         ) {
           quantity =
-            internalPaintArea;
+            internalPaintArea + externalPaintArea;
         } else {
           quantity =
             workQuantities.find(
@@ -1575,6 +1647,46 @@ export function buildProjectEstimate(
       }
     );
 
+  const floorKeySet = new Set<string>();
+  for (const result of results.values()) {
+    if (result.byFloor && typeof result.byFloor === "object") {
+      for (const k of Object.keys(result.byFloor)) {
+        floorKeySet.add(k);
+      }
+    }
+  }
+
+  const floorBreakdown =
+    floorKeySet.size > 0
+      ? [...floorKeySet]
+          .sort((a, b) => Number(a) - Number(b))
+          .map((key) => {
+            const level = Number(key);
+            const getFloorVal = (calcType: CalculationType, valKey: string) => {
+              const res = results.get(calcType);
+              const bf = res?.byFloor as Record<string, Record<string, number>> | undefined;
+              return Number(bf?.[key]?.[valKey] || 0);
+            };
+
+            const fWork = [
+              { key: "columnConcrete", label: "Column Concrete", quantity: getFloorVal("COLUMN_CONCRETE", "concreteVolume"), unit: "m³" },
+              { key: "beamConcrete", label: "Beam Concrete", quantity: getFloorVal("BEAM_CONCRETE", "concreteVolume"), unit: "m³" },
+              { key: "slabConcrete", label: "Slab Concrete", quantity: getFloorVal("SLAB_CONCRETE", "quantity"), unit: "m³" },
+              { key: "brickwork", label: "Brickwork", quantity: getFloorVal("BRICKWORK", "netVolume"), unit: "m³" },
+              { key: "internalPlaster", label: "Internal Plaster", quantity: getFloorVal("INTERNAL_PLASTER", "netArea"), unit: "m²" },
+              { key: "externalPlaster", label: "External Plaster", quantity: getFloorVal("EXTERNAL_PLASTER", "netArea"), unit: "m²" },
+              { key: "flooring", label: "Flooring", quantity: getFloorVal("FLOORING", "floorArea"), unit: "m²" },
+            ].filter((item) => item.quantity > 0);
+
+            return {
+              floorLevel: level,
+              floorName: level === 0 ? "Ground Floor" : `Floor ${level}`,
+              workQuantities: fWork,
+            };
+          })
+          .filter((f) => f.workQuantities.length > 0)
+      : undefined;
+
   return {
     workQuantities,
     labour: labourRows,
@@ -1587,5 +1699,6 @@ export function buildProjectEstimate(
           (item.cost ?? 0),
         0
       ),
+    floorBreakdown,
   };
 }

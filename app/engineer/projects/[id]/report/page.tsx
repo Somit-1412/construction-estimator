@@ -3,16 +3,308 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-type Estimate = { project: { id: string; projectName: string; clientName: string; clientEmail: string; location: string; status: string }; workQuantities: { key: string; label: string; quantity: number; unit: string }[]; materials: { materialName: string; quantity: number; unit: string; source: string; rate: number | null; cost: number | null }[]; labour: { key: string; label: string; quantity: number; unit: string; rate: number; cost: number }[]; totalMaterialCost: number; totalLabourCost: number };
+type Estimate = {
+  project: {
+    id: string;
+    projectName: string;
+    clientName: string;
+    clientEmail: string;
+    location: string;
+    status: string;
+  };
+  workQuantities: {
+    key: string;
+    label: string;
+    quantity: number;
+    unit: string;
+  }[];
+  materials: {
+    materialName: string;
+    quantity: number;
+    unit: string;
+    source: string;
+    rate: number | null;
+    cost: number | null;
+  }[];
+  labour: {
+    key: string;
+    label: string;
+    quantity: number;
+    unit: string;
+    rate: number;
+    cost: number;
+  }[];
+  totalMaterialCost: number;
+  totalLabourCost: number;
+  revision?: number;
+};
 
-export default function ReportPage({ params }: { params: Promise<{ id: string }> }) {
-  const [id, setId] = useState<string | null>(null); const [estimate, setEstimate] = useState<Estimate | null>(null); const [error, setError] = useState(""); const [finalizing, setFinalizing] = useState(false); const [clientLink, setClientLink] = useState("");
-  useEffect(() => { void params.then(({ id: value }) => setId(value)); }, [params]);
-  useEffect(() => { if (!id) return; fetch(`/api/projects/${id}/estimate`, { cache: "no-store" }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "Unable to load report."); setEstimate(d); }).catch(e => setError(e.message)); }, [id]);
-  async function finalize() { if (!id) return; setFinalizing(true); setError(""); try { const r = await fetch(`/api/projects/${id}/finalize`, { method: "POST" }); const d = await r.json(); if (!r.ok) throw new Error(d.error || "Unable to finalize estimate."); setClientLink(`${window.location.origin}/estimate/${d.clientAccessToken}`); setEstimate(current => current ? { ...current, project: { ...current.project, status: "COMPLETED" } } : current); } catch(e) { setError(e instanceof Error ? e.message : "Unable to finalize estimate."); } finally { setFinalizing(false); } }
+export default function ReportPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const [id, setId] = useState<string | null>(null);
+  const [estimate, setEstimate] = useState<Estimate | null>(null);
+  const [error, setError] = useState("");
+  const [finalizing, setFinalizing] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  useEffect(() => {
+    void params.then(({ id: value }) => setId(value));
+  }, [params]);
+
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/projects/${id}/estimate`, { cache: "no-store" })
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Unable to load report.");
+        setEstimate(d);
+      })
+      .catch((e) => setError(e.message));
+  }, [id]);
+
+  async function finalize() {
+    if (!id) return;
+    setFinalizing(true);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const r = await fetch(`/api/projects/${id}/finalize`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Unable to finalize estimate.");
+
+      setSuccessMessage(
+        `Estimate finalized successfully (Revision R${d.revision || 1}).`
+      );
+      setEstimate((current) =>
+        current
+          ? {
+              ...current,
+              revision: d.revision || 1,
+              project: { ...current.project, status: "COMPLETED" },
+            }
+          : current
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to finalize estimate.");
+    } finally {
+      setFinalizing(false);
+    }
+  }
+
   if (error && !estimate) return <div className="alert-error">{error}</div>;
-  if (!estimate) return <div className="text-sm text-slate-500">Loading report…</div>;
+  if (!estimate)
+    return <div className="text-sm text-slate-500">Loading report…</div>;
+
   const completed = estimate.project.status === "COMPLETED";
-  return <div className="space-y-7 print:bg-white print:text-black"><div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between print:hidden"><div><Link href={`/engineer/projects/${estimate.project.id}`} className="back-link">← Back to Project</Link><div className="page-kicker">Issued estimate</div><h1 className="page-title">Estimate Report</h1><p className="page-subtitle">Review the complete estimate, then finalize it to create a stable client-facing revision.</p></div><div className="flex gap-3"><button onClick={()=>window.print()} className="secondary-button">Print / Save PDF</button>{!completed && <button onClick={()=>void finalize()} disabled={finalizing} className="primary-button">{finalizing ? "Finalizing…" : "Finalize estimate"}</button>}</div></div>{error && <div className="alert-error print:hidden">{error}</div>}{clientLink && <div className="alert-success print:hidden"><p className="font-semibold">Client access link created</p><div className="mt-2 flex flex-col gap-2 sm:flex-row"><input readOnly value={clientLink} className="field-input flex-1"/><button className="secondary-button" onClick={()=>void navigator.clipboard.writeText(clientLink)}>Copy link</button></div><p className="mt-2 text-xs">Email delivery can be connected later. This link is the secure client access credential.</p></div>}
-  <main className="engineering-card p-8 print:border-0 print:shadow-none"><header className="border-b border-slate-200 pb-6"><div className="engineering-mark small">CE</div><p className="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-blue-700">Construction estimate</p><h2 className="mt-2 text-3xl font-bold tracking-tight">{estimate.project.projectName}</h2><div className="mt-5 grid gap-3 text-sm md:grid-cols-2"><p><span className="muted-label">Client</span> {estimate.project.clientName}</p><p><span className="muted-label">Location</span> {estimate.project.location}</p><p><span className="muted-label">Email</span> {estimate.project.clientEmail}</p><p><span className="muted-label">Status</span> {estimate.project.status.replaceAll("_", " ")}</p></div></header><section className="mt-8"><h3 className="section-title">Construction quantities</h3><table className="data-table mt-4"><thead><tr><th>Item</th><th>Quantity</th><th>Unit</th></tr></thead><tbody>{estimate.workQuantities.map(item=><tr key={item.key}><td>{item.label}</td><td>{item.quantity.toFixed(3)}</td><td>{item.unit}</td></tr>)}</tbody></table></section><section className="mt-8"><h3 className="section-title">Material cost</h3><table className="data-table mt-4"><thead><tr><th>Material</th><th>Quantity</th><th>Rate</th><th>Cost</th></tr></thead><tbody>{estimate.materials.map(item=><tr key={item.materialName}><td>{item.materialName}</td><td>{item.quantity.toFixed(3)} {item.unit}</td><td>{item.rate === null ? "Not set" : `₹${item.rate.toFixed(2)}`}</td><td>{item.cost === null ? "—" : `₹${item.cost.toFixed(2)}`}</td></tr>)}</tbody></table><div className="mt-4 flex justify-end"><strong>Material total: ₹{estimate.totalMaterialCost.toFixed(2)}</strong></div></section><section className="mt-8"><h3 className="section-title">Labour cost</h3><table className="data-table mt-4"><thead><tr><th>Work</th><th>Quantity</th><th>Rate</th><th>Cost</th></tr></thead><tbody>{estimate.labour.filter(item=>item.rate>0).map(item=><tr key={item.key}><td>{item.label}</td><td>{item.quantity.toFixed(3)} {item.unit}</td><td>₹{item.rate.toFixed(2)}</td><td>₹{item.cost.toFixed(2)}</td></tr>)}</tbody></table><div className="mt-4 flex justify-end"><strong>Labour total: ₹{estimate.totalLabourCost.toFixed(2)}</strong></div></section><section className="mt-8 border-t-2 border-slate-900 pt-6"><div className="flex items-center justify-between"><span className="text-lg font-semibold">Estimated construction total</span><strong className="text-3xl">₹{(estimate.totalMaterialCost + estimate.totalLabourCost).toFixed(2)}</strong></div></section><p className="mt-8 text-xs leading-5 text-slate-500">Finalized estimates preserve the material rates and project specifications used at issuance. A later master-rate change does not silently alter this revision.</p></main></div>;
+
+  return (
+    <div className="space-y-7 print:bg-white print:text-black">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between print:hidden">
+        <div>
+          <Link
+            href={`/engineer/projects/${estimate.project.id}`}
+            className="back-link"
+          >
+            ← Back to Project
+          </Link>
+          <div className="page-kicker">Issued estimate</div>
+          <h1 className="page-title">Estimate Report</h1>
+          <p className="page-subtitle">
+            Review the complete estimate, then finalize it to create an official
+            issued revision.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {completed && (
+            <a
+              href={`/api/projects/${estimate.project.id}/estimate/pdf`}
+              target="_blank"
+              rel="noreferrer"
+              className="primary-button !px-4 !py-2 text-xs font-semibold"
+            >
+              Download PDF
+            </a>
+          )}
+
+          <button
+            onClick={() => window.print()}
+            className="secondary-button !px-4 !py-2 text-xs font-semibold"
+          >
+            Print Report
+          </button>
+
+          {!completed && (
+            <button
+              onClick={() => void finalize()}
+              disabled={finalizing}
+              className="primary-button !px-4 !py-2 text-xs font-semibold"
+            >
+              {finalizing ? "Finalizing…" : "Finalize estimate"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && <div className="alert-error print:hidden">{error}</div>}
+
+      {successMessage && (
+        <div className="alert-success print:hidden">
+          <p className="font-semibold text-emerald-900">{successMessage}</p>
+          <p className="mt-1 text-xs text-emerald-800">
+            The finalized estimate and PDF are now published and available to
+            the customer in their Estimex account portal, and can also be
+            downloaded directly from this workspace using the Download PDF button
+            above.
+          </p>
+        </div>
+      )}
+
+      <main className="engineering-card p-8 print:border-0 print:shadow-none">
+        <header className="border-b border-slate-200 pb-6">
+          <div className="engineering-mark small">CE</div>
+          <p className="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-blue-700">
+            Construction estimate
+          </p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight">
+            {estimate.project.projectName}
+          </h2>
+          <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
+            <p>
+              <span className="muted-label">Client</span>{" "}
+              {estimate.project.clientName}
+            </p>
+            <p>
+              <span className="muted-label">Location</span>{" "}
+              {estimate.project.location}
+            </p>
+            <p>
+              <span className="muted-label">Email</span>{" "}
+              {estimate.project.clientEmail}
+            </p>
+            <p>
+              <span className="muted-label">Status</span>{" "}
+              {estimate.project.status.replaceAll("_", " ")}
+            </p>
+          </div>
+        </header>
+
+        <section className="mt-8">
+          <h3 className="section-title">Construction quantities</h3>
+          <table className="data-table mt-4">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {estimate.workQuantities.map((item) => (
+                <tr key={item.key}>
+                  <td>{item.label}</td>
+                  <td>{item.quantity.toFixed(3)}</td>
+                  <td>{item.unit}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        <section className="mt-8">
+          <h3 className="section-title">Material cost</h3>
+          <table className="data-table mt-4">
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Quantity</th>
+                <th>Rate</th>
+                <th>Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {estimate.materials.map((item) => (
+                <tr key={item.materialName}>
+                  <td>{item.materialName}</td>
+                  <td>
+                    {item.quantity.toFixed(3)} {item.unit}
+                  </td>
+                  <td>
+                    {item.rate === null
+                      ? "Not set"
+                      : `₹${item.rate.toFixed(2)}`}
+                  </td>
+                  <td>
+                    {item.cost === null ? "—" : `₹${item.cost.toFixed(2)}`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-4 flex justify-end">
+            <strong>
+              Material total: ₹{estimate.totalMaterialCost.toFixed(2)}
+            </strong>
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <h3 className="section-title">Labour cost</h3>
+          <table className="data-table mt-4">
+            <thead>
+              <tr>
+                <th>Work</th>
+                <th>Quantity</th>
+                <th>Rate</th>
+                <th>Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {estimate.labour
+                .filter((item) => item.rate > 0)
+                .map((item) => (
+                  <tr key={item.key}>
+                    <td>{item.label}</td>
+                    <td>
+                      {item.quantity.toFixed(3)} {item.unit}
+                    </td>
+                    <td>₹{item.rate.toFixed(2)}</td>
+                    <td>₹{item.cost.toFixed(2)}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+          <div className="mt-4 flex justify-end">
+            <strong>
+              Labour total: ₹{estimate.totalLabourCost.toFixed(2)}
+            </strong>
+          </div>
+        </section>
+
+        <section className="mt-8 border-t-2 border-slate-900 pt-6">
+          <div className="flex items-center justify-between">
+            <span className="text-lg font-semibold">
+              Estimated construction total
+            </span>
+            <strong className="text-3xl">
+              ₹
+              {(
+                estimate.totalMaterialCost + estimate.totalLabourCost
+              ).toFixed(2)}
+            </strong>
+          </div>
+        </section>
+
+        <p className="mt-8 text-xs leading-5 text-slate-500">
+          Finalized estimates preserve the material rates and project
+          specifications used at issuance. A later master-rate change does not
+          silently alter this revision.
+        </p>
+      </main>
+    </div>
+  );
 }

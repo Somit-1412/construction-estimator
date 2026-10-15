@@ -24,10 +24,15 @@ export default async function ProjectPage({
           uploadedAt: "desc",
         },
       },
+      floors: {
+        orderBy: {
+          level: "asc",
+        },
+      },
     },
   });
 
-  if (!project) {
+  if (!project || project.status === "PAYMENT_PENDING") {
     notFound();
   }
 
@@ -79,6 +84,17 @@ export default async function ProjectPage({
                   {project.location}
                 </p>
               </div>
+
+              <div>
+                <span className="text-zinc-500">Storeys</span>
+                <p className="mt-1 text-zinc-200">
+                  {project.floors.length === 0
+                    ? "Single storey (Default)"
+                    : `${project.floors.length} ${
+                        project.floors.length === 1 ? "storey" : "storeys"
+                      } (${project.floors.map((f) => f.name).join(", ")})`}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -92,11 +108,25 @@ export default async function ProjectPage({
         </h2>
 
         <p className="mt-1 text-sm text-zinc-400">
-          Calculation, drawings, materials, costing and reporting for this
-          project will be managed here.
+          Manage calculations, drawings, specifications, materials, costing, and reports for this project.
         </p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Link
+            href={`/engineer/projects/${project.id}/floors`}
+            className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 transition hover:border-zinc-600 hover:bg-zinc-900"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium text-white">Floors &amp; Storeys</h3>
+              <span className="rounded bg-blue-900/60 px-2 py-0.5 text-xs font-semibold text-blue-300">
+                {project.floors.length === 0 ? "Single Storey" : `${project.floors.length} Floors`}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-zinc-500">
+              Configure building storeys, levels, and heights for superstructure aggregation.
+            </p>
+          </Link>
+
           <DrawingsSection
             projectId={project.id}
             initialDrawings={project.drawings}
@@ -144,7 +174,7 @@ export default async function ProjectPage({
             className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 transition hover:border-zinc-600 hover:bg-zinc-900"
           >
             <h3 className="font-medium text-white">Report</h3>
-            <p className="mt-1 text-sm text-zinc-500">Review and print the project estimate.</p>
+            <p className="mt-1 text-sm text-zinc-500">Review, finalize, and download the estimate report.</p>
           </Link>
         </div>
       </section>

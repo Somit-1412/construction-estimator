@@ -1,4 +1,4 @@
-import { CalculationType } from "@/lib/generated/prisma/client";
+import { CalculationType, Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEngineer, unauthorizedResponse } from "@/lib/auth";
 import { calculateCalculationResult } from "@/lib/project/quantityEngine";
@@ -106,14 +106,14 @@ export async function PUT(
     },
     update: {
       inputs: body.inputs,
-      results,
+      results: results as unknown as Prisma.InputJsonValue,
       calculatedAt: new Date(),
     },
     create: {
       projectId: id,
       type,
       inputs: body.inputs,
-      results,
+      results: results as unknown as Prisma.InputJsonValue,
       calculatedAt: new Date(),
     },
   });

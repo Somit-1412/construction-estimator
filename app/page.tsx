@@ -28,7 +28,7 @@ export default function Home() {
   return (
     <main className="min-h-screen blueprint-grid text-slate-900">
       <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-2 md:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-2 md:px-8">
           <Link
             href="/"
             className="flex items-center"
@@ -43,12 +43,36 @@ export default function Home() {
             />
           </Link>
 
-          <Link
-            href="/submit"
-            className="primary-button"
-          >
-            Start an estimate
-          </Link>
+          <nav className="flex items-center gap-1.5 sm:gap-3">
+            <Link
+              href="/contact"
+              className="text-xs font-semibold text-slate-600 hover:text-blue-700 px-2 py-2 sm:px-3 sm:py-2.5 sm:text-sm transition"
+            >
+              Contact Us
+            </Link>
+
+            <Link
+              href="/login"
+              className="secondary-button text-xs !px-2.5 !py-2 sm:!px-4 sm:!py-2.5 sm:text-sm"
+            >
+              Log In
+            </Link>
+
+            <Link
+              href="/register"
+              className="secondary-button text-xs !px-2.5 !py-2 font-bold text-blue-700 border-blue-200 hover:bg-blue-50 sm:!px-4 sm:!py-2.5 sm:text-sm"
+            >
+              Sign Up
+            </Link>
+
+            <Link
+              href="/submit"
+              className="primary-button text-xs !px-2.5 !py-2 sm:!px-4 sm:!py-2.5 sm:text-sm"
+            >
+              <span className="hidden sm:inline">Start an estimate</span>
+              <span className="sm:hidden">Start</span>
+            </Link>
+          </nav>
         </div>
       </header>
 
@@ -281,9 +305,16 @@ export default function Home() {
             </span>
           </div>
 
-          <span className="text-xs text-slate-500">
-            Engineering-led quantity and cost estimation.
-          </span>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+            <Link
+              href="/contact"
+              className="font-medium text-slate-600 hover:text-blue-700 transition"
+            >
+              Contact Us
+            </Link>
+            <span className="hidden sm:inline">·</span>
+            <span>Engineering-led quantity and cost estimation.</span>
+          </div>
         </div>
       </footer>
     </main>

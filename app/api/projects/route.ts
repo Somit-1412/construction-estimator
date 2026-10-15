@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import {
   getCurrentCustomer,
   customerUnauthorizedResponse,
+  touchCustomerSession,
 } from "@/lib/customer-auth";
 import {
   getCurrentEngineer,
@@ -12,7 +13,13 @@ import {
 export async function GET() {
   if (!(await getCurrentEngineer())) return unauthorizedResponse();
 
+  // Engineers only see actionable projects where payment has been received
   const projects = await prisma.project.findMany({
+    where: {
+      status: {
+        not: "PAYMENT_PENDING",
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -45,6 +52,7 @@ export async function POST(request: Request) {
 
   const submissionToken = randomBytes(24).toString("base64url");
 
+  // Project is created with PAYMENT_PENDING. Payment must precede engineer intake.
   const project = await prisma.project.create({
     data: {
       projectName,
@@ -52,11 +60,15 @@ export async function POST(request: Request) {
       clientEmail: customer.email,
       location,
       customerId: customer.id,
+      status: "PAYMENT_PENDING",
       submissionTokenHash: createHash("sha256")
         .update(submissionToken)
         .digest("hex"),
     },
   });
+
+  // Record this explicit user action to reset the inactivity clock.
+  await touchCustomerSession();
 
   return Response.json(
     {

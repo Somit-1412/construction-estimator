@@ -1,4 +1,3 @@
-import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEngineer, unauthorizedResponse } from "@/lib/auth";
 import { buildProjectEstimate } from "@/lib/project/quantityEngine";
@@ -18,17 +17,14 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   const totalCost = estimate.totalMaterialCost + estimate.totalLabourCost;
   const revision = (await prisma.estimate.findUnique({ where: { projectId: id }, select: { revision: true } }))?.revision ?? 0;
-  const token = randomBytes(32).toString("base64url");
-  const tokenHash = createHash("sha256").update(token).digest("hex");
   const finalizedAt = new Date();
-  const snapshot = { project: { id: project.id, projectName: project.projectName, clientName: project.clientName, clientEmail: project.clientEmail, location: project.location }, workQuantities: estimate.workQuantities, materials: estimate.materials, labour: estimate.labour, totalMaterialCost: estimate.totalMaterialCost, totalLabourCost: estimate.totalLabourCost, totalCost, specifications: project.estimateSettings };
+  const snapshot = { project: { id: project.id, projectName: project.projectName, clientName: project.clientName, clientEmail: project.clientEmail, location: project.location }, workQuantities: estimate.workQuantities, materials: estimate.materials, labour: estimate.labour, totalMaterialCost: estimate.totalMaterialCost, totalLabourCost: estimate.totalLabourCost, totalCost, specifications: project.estimateSettings, floorBreakdown: estimate.floorBreakdown };
 
   await prisma.$transaction(async tx => {
     await tx.estimate.upsert({ where: { projectId: id }, update: { revision: revision + 1, snapshot, materialCost: estimate.totalMaterialCost, labourCost: estimate.totalLabourCost, totalCost, finalizedAt }, create: { projectId: id, revision: 1, snapshot, materialCost: estimate.totalMaterialCost, labourCost: estimate.totalLabourCost, totalCost, finalizedAt } });
     await tx.clientAccess.updateMany({ where: { projectId: id, revokedAt: null }, data: { revokedAt: finalizedAt } });
-    await tx.clientAccess.create({ data: { projectId: id, tokenHash } });
     await tx.project.update({ where: { id }, data: { status: "COMPLETED" } });
   });
 
-  return Response.json({ ok: true, revision: revision + 1, clientAccessToken: token, totalCost });
+  return Response.json({ ok: true, revision: revision + 1, totalCost });
 }

@@ -66,7 +66,7 @@ export default function SubmitPage() {
         }
       }
 
-      router.push("/submit/success");
+      router.push(`/submit/payment?projectId=${project.id}`);
     } catch (error) {
       setError(
         error instanceof Error
@@ -87,9 +87,18 @@ export default function SubmitPage() {
             <span className="font-extrabold">Construction Estimator</span>
           </Link>
 
-          <span className="text-xs font-semibold text-slate-500">
-            Project submission
-          </span>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/contact"
+              className="text-xs font-semibold text-slate-600 hover:text-blue-700 transition"
+            >
+              Contact Us
+            </Link>
+
+            <span className="text-xs font-semibold text-slate-500">
+              Project submission
+            </span>
+          </div>
         </div>
       </header>
 
@@ -207,16 +216,17 @@ export default function SubmitPage() {
           {error && <div className="alert-error">{error}</div>}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs leading-5 text-slate-500">
-              Your account details will be associated with this project.
-            </p>
+            <div className="text-xs leading-5 text-slate-500">
+              <span className="font-semibold text-slate-700">Estimex Service Fee: ₹699.00</span>
+              <p className="text-[11px] text-slate-400">Fixed estimation fee for complete BOQ & civil calculations.</p>
+            </div>
 
             <button
               type="submit"
               disabled={submitting}
               className="primary-button"
             >
-              {submitting ? "Submitting project…" : "Submit project"}
+              {submitting ? "Uploading drawings…" : "Proceed to Payment (₹699) →"}
             </button>
           </div>
         </form>

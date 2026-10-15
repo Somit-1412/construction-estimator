@@ -1,5 +1,7 @@
 export type PaintingResult = {
   internalPaintingArea: number;
+  externalPaintingArea: number;
+  totalPaintingArea: number;
 };
 
 export function calculateInternalPaintingArea(
@@ -12,4 +14,26 @@ export function calculateInternalPaintingArea(
   }
 
   return internalPlasterNetArea;
+}
+
+export function calculateExternalPaintingArea(
+  externalPlasterNetArea: number
+): number {
+  if (externalPlasterNetArea < 0) {
+    throw new Error(
+      "External plaster area cannot be negative."
+    );
+  }
+
+  return externalPlasterNetArea;
+}
+
+export function totalPaintingArea(
+  internalPaintingArea: number,
+  externalPaintingArea: number
+): number {
+  return (
+    calculateInternalPaintingArea(internalPaintingArea) +
+    calculateExternalPaintingArea(externalPaintingArea)
+  );
 }

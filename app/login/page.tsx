@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,7 +36,11 @@ export default function LoginPage() {
         throw new Error(data.error || "Unable to sign in.");
       }
 
-      router.push("/customer");
+      // Honour a safe same-origin callbackUrl (e.g. ?callbackUrl=/submit)
+      const raw = searchParams.get("callbackUrl") ?? "";
+      const destination =
+        raw.startsWith("/") && !raw.startsWith("//") ? raw : "/customer";
+      router.push(destination);
     } catch (error) {
       setError(
         error instanceof Error
@@ -48,6 +53,48 @@ export default function LoginPage() {
   }
 
   return (
+    <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+      <label>
+        <span className="field-label">Email address</span>
+        <input
+          className="field-input"
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@example.com"
+          autoComplete="email"
+          required
+        />
+      </label>
+
+      <label>
+        <span className="field-label">Password</span>
+        <input
+          className="field-input"
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="Your password"
+          autoComplete="current-password"
+          required
+        />
+      </label>
+
+      {error && <div className="alert-error">{error}</div>}
+
+      <button
+        type="submit"
+        disabled={submitting}
+        className="primary-button w-full"
+      >
+        {submitting ? "Signing in…" : "Sign in"}
+      </button>
+    </form>
+  );
+}
+
+export default function LoginPage() {
+  return (
     <main className="min-h-screen blueprint-grid">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4 md:px-8">
@@ -56,12 +103,21 @@ export default function LoginPage() {
             <span className="font-extrabold">Construction Estimator</span>
           </Link>
 
-          <Link
-            href="/register"
-            className="text-sm font-semibold text-blue-700 hover:text-blue-800"
-          >
-            Create account
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/contact"
+              className="text-sm font-semibold text-slate-600 hover:text-blue-700 transition"
+            >
+              Contact Us
+            </Link>
+
+            <Link
+              href="/register"
+              className="text-sm font-semibold text-blue-700 hover:text-blue-800"
+            >
+              Create account
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -79,43 +135,9 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            <label>
-              <span className="field-label">Email address</span>
-              <input
-                className="field-input"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
-                required
-              />
-            </label>
-
-            <label>
-              <span className="field-label">Password</span>
-              <input
-                className="field-input"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Your password"
-                autoComplete="current-password"
-                required
-              />
-            </label>
-
-            {error && <div className="alert-error">{error}</div>}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="primary-button w-full"
-            >
-              {submitting ? "Signing in…" : "Sign in"}
-            </button>
-          </form>
+          <Suspense fallback={null}>
+            <LoginForm />
+          </Suspense>
 
           <p className="mt-6 text-center text-sm text-slate-500">
             Don&apos;t have an account?{" "}

@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "ProjectStatus" ADD VALUE 'PAYMENT_PENDING';
+
+-- AlterTable
+ALTER TABLE "Project" ALTER COLUMN "status" SET DEFAULT 'PAYMENT_PENDING';

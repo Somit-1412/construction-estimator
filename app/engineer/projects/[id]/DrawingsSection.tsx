@@ -16,7 +16,6 @@ type DrawingsSectionProps = {
 };
 
 export default function DrawingsSection({
-  projectId,
   initialDrawings,
 }: DrawingsSectionProps) {
   const [drawings] = useState<Drawing[]>(initialDrawings);

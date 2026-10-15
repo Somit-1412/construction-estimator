@@ -57,15 +57,17 @@ export default function ClientEstimatePage({
   params: Promise<{ token: string }>;
 }) {
   const [data, setData] = useState<Data | null>(null);
+  const [tokenStr, setTokenStr] = useState<string>("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     void params
-      .then(({ token }) =>
-        fetch(`/api/public/estimates/${token}`, {
+      .then(({ token }) => {
+        setTokenStr(token);
+        return fetch(`/api/public/estimates/${token}`, {
           cache: "no-store",
-        })
-      )
+        });
+      })
       .then(async (response) => {
         const result = await response.json();
 
@@ -153,13 +155,25 @@ export default function ClientEstimatePage({
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="secondary-button print:hidden"
-            >
-              Print / Save PDF
-            </button>
+            <div className="flex items-center gap-3 print:hidden">
+              {tokenStr && (
+                <a
+                  href={`/api/public/estimates/${tokenStr}/pdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="primary-button !px-4 !py-2 !text-xs font-bold"
+                >
+                  Download Official PDF
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="secondary-button !px-4 !py-2 !text-xs"
+              >
+                Print / Save
+              </button>
+            </div>
           </div>
 
           <div className="mt-8 grid gap-4 border-t border-slate-200 pt-6 text-sm md:grid-cols-3">

@@ -64,10 +64,28 @@ export async function createEngineerSession(engineerId: string) {
 }
 
 export async function destroyEngineerSession() {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
-  if (token) await prisma.engineerSession.deleteMany({ where: { tokenHash: hashToken(token) } });
-  store.delete(SESSION_COOKIE);
+  try {
+    const store = await cookies();
+    const token = store.get(SESSION_COOKIE)?.value;
+    if (token) {
+      await prisma.engineerSession.deleteMany({ where: { tokenHash: hashToken(token) } });
+    }
+    try {
+      store.delete({ name: SESSION_COOKIE, path: "/" });
+      store.set(SESSION_COOKIE, "", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 0,
+        expires: new Date(0),
+      });
+    } catch {
+      // In case cookies cannot be modified during render
+    }
+  } catch {
+    // Ignore error
+  }
 }
 
 export async function getCurrentEngineer() {
@@ -79,15 +97,35 @@ export async function getCurrentEngineer() {
     include: { engineer: true },
   });
   if (!session || session.expiresAt <= new Date() || !session.engineer.active) {
-    await prisma.engineerSession.deleteMany({ where: { tokenHash: hashToken(token) } });
-    store.delete(SESSION_COOKIE);
+    if (token) {
+      try {
+        await prisma.engineerSession.deleteMany({ where: { tokenHash: hashToken(token) } });
+      } catch {
+        // Ignore DB deletion errors
+      }
+    }
+    try {
+      store.delete({ name: SESSION_COOKIE, path: "/" });
+    } catch {
+      // In Server Components, response cookies cannot be modified during render
+    }
     return null;
   }
   return session.engineer;
 }
 
 export function unauthorizedResponse() {
-  return Response.json({ error: "Engineer authentication is required." }, { status: 401 });
+  return Response.json(
+    { error: "Engineer authentication is required." },
+    {
+      status: 401,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    },
+  );
 }
 
 export { SESSION_COOKIE };
