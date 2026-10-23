@@ -558,10 +558,52 @@ function PaymentCheckoutContent() {
                   </button>
                 </div>
               )}
+              {/* Policy Acceptance Notice for Razorpay compliance */}
+              <div className="mt-6 border-t border-slate-100 pt-4 text-center text-xs text-slate-500">
+                <p>
+                  By completing payment of ₹{order?.amountInr ?? 699}.00, you acknowledge and agree to Estimex&apos;s{" "}
+                  <Link href="/terms" target="_blank" className="font-semibold text-blue-700 underline hover:text-blue-900">
+                    Terms &amp; Conditions
+                  </Link>
+                  {", "}
+                  <Link href="/privacy" target="_blank" className="font-semibold text-blue-700 underline hover:text-blue-900">
+                    Privacy Policy
+                  </Link>
+                  {", and "}
+                  <Link href="/refund-policy" target="_blank" className="font-semibold text-blue-700 underline hover:text-blue-900">
+                    Refund Policy
+                  </Link>
+                  .
+                </p>
+              </div>
             </section>
           </div>
         </div>
       </div>
+
+      {/* Public Footer */}
+      <footer className="mt-16 border-t border-slate-200 bg-white py-6">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 px-5 text-xs text-slate-500 sm:flex-row md:px-8">
+          <span>Estimex Civil Estimation</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link href="/terms" target="_blank" className="hover:text-blue-700 transition">
+              Terms &amp; Conditions
+            </Link>
+            <span>·</span>
+            <Link href="/privacy" target="_blank" className="hover:text-blue-700 transition">
+              Privacy Policy
+            </Link>
+            <span>·</span>
+            <Link href="/refund-policy" target="_blank" className="hover:text-blue-700 transition">
+              Refund Policy
+            </Link>
+            <span>·</span>
+            <Link href="/contact" target="_blank" className="hover:text-blue-700 transition">
+              Contact Us
+            </Link>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }

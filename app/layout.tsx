@@ -5,7 +5,25 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
-export const metadata: Metadata = { title: "Construction Estimator", description: "Professional construction quantity and cost estimation." };
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://estimex.in";
+
+export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "Estimex — Civil Estimation Made Simple",
+    template: "%s | Estimex",
+  },
+  description:
+    "Professional civil construction quantity take-off, material schedules, and Bill of Quantities (BOQ) estimation.",
+  openGraph: {
+    title: "Estimex — Civil Estimation Made Simple",
+    description:
+      "Professional civil construction quantity take-off, material schedules, and Bill of Quantities (BOQ) estimation.",
+    siteName: "Estimex",
+    locale: "en_IN",
+    type: "website",
+  },
+};
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}><body className="min-h-full flex flex-col">{children}</body></html>;

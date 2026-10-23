@@ -246,17 +246,22 @@ export default async function CustomerDashboard() {
       <footer className="mt-16 border-t border-slate-200 bg-white py-6">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 text-xs text-slate-500 sm:flex-row md:px-8">
           <span>Estimex Civil Estimation</span>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link href="/terms" className="hover:text-blue-700 transition">
+              Terms &amp; Conditions
+            </Link>
+            <span>·</span>
+            <Link href="/privacy" className="hover:text-blue-700 transition">
+              Privacy Policy
+            </Link>
+            <span>·</span>
+            <Link href="/refund-policy" className="hover:text-blue-700 transition">
+              Refund Policy
+            </Link>
+            <span>·</span>
             <Link href="/contact" className="hover:text-blue-700 transition">
               Contact Us
             </Link>
-            <span>·</span>
-            <a
-              href="mailto:anushrisatpute03@gmail.com"
-              className="hover:text-blue-700 transition"
-            >
-              anushrisatpute03@gmail.com
-            </a>
           </div>
         </div>
       </footer>

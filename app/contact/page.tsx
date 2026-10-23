@@ -196,14 +196,24 @@ export default function ContactPage() {
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
             <Link href="/" className="hover:text-blue-700 transition">
               Home
             </Link>
             <span>·</span>
-            <span className="font-semibold text-slate-700">Contact Us</span>
+            <Link href="/terms" className="hover:text-blue-700 transition">
+              Terms &amp; Conditions
+            </Link>
             <span>·</span>
-            <span>Engineering-led quantity and cost estimation.</span>
+            <Link href="/privacy" className="hover:text-blue-700 transition">
+              Privacy Policy
+            </Link>
+            <span>·</span>
+            <Link href="/refund-policy" className="hover:text-blue-700 transition">
+              Refund Policy
+            </Link>
+            <span>·</span>
+            <span className="font-semibold text-slate-700">Contact Us</span>
           </div>
         </div>
       </footer>

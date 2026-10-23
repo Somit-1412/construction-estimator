@@ -218,7 +218,11 @@ export default function SubmitPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-xs leading-5 text-slate-500">
               <span className="font-semibold text-slate-700">Estimex Service Fee: ₹699.00</span>
-              <p className="text-[11px] text-slate-400">Fixed estimation fee for complete BOQ & civil calculations.</p>
+              <p className="text-[11px] text-slate-400">
+                Fixed estimation fee for complete BOQ &amp; civil calculations. By proceeding, you agree to our{" "}
+                <Link href="/terms" target="_blank" className="underline hover:text-blue-700">Terms</Link> and{" "}
+                <Link href="/refund-policy" target="_blank" className="underline hover:text-blue-700">Refund Policy</Link>.
+              </p>
             </div>
 
             <button
@@ -231,6 +235,30 @@ export default function SubmitPage() {
           </div>
         </form>
       </div>
+
+      {/* Public Footer */}
+      <footer className="mt-16 border-t border-slate-200 bg-white py-6">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 px-5 text-xs text-slate-500 sm:flex-row md:px-8">
+          <span>Estimex Civil Estimation</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link href="/terms" target="_blank" className="hover:text-blue-700 transition">
+              Terms &amp; Conditions
+            </Link>
+            <span>·</span>
+            <Link href="/privacy" target="_blank" className="hover:text-blue-700 transition">
+              Privacy Policy
+            </Link>
+            <span>·</span>
+            <Link href="/refund-policy" target="_blank" className="hover:text-blue-700 transition">
+              Refund Policy
+            </Link>
+            <span>·</span>
+            <Link href="/contact" target="_blank" className="hover:text-blue-700 transition">
+              Contact Us
+            </Link>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }

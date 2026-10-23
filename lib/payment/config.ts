@@ -23,32 +23,39 @@ export type PaymentConfig = {
  * - If provider keys (PAYMENT_KEY_ID / PAYMENT_KEY_SECRET) are missing, live payments are disabled,
  *   and test simulation mode is enabled for development and sandbox validation.
  */
+function cleanEnv(val: string | undefined | null): string {
+  if (!val) return "";
+  return val.trim().replace(/^["'\\]+|["'\\]+$/g, "").trim();
+}
+
 export function getPaymentConfig(): PaymentConfig {
-  const rawFee = process.env.ESTIMATION_SERVICE_FEE_INR;
+  const rawFee = cleanEnv(process.env.ESTIMATION_SERVICE_FEE_INR);
   const parsedFee = rawFee ? Number(rawFee) : NaN;
   const feeInr =
     Number.isFinite(parsedFee) && parsedFee > 0
       ? parsedFee
       : DEFAULT_SERVICE_FEE_INR;
 
-  const provider = (process.env.PAYMENT_PROVIDER || "razorpay").toLowerCase().trim();
-  const keyId = process.env.PAYMENT_KEY_ID || process.env.RAZORPAY_KEY_ID || null;
-  const keySecret = process.env.PAYMENT_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET || null;
-  const upiVpa = process.env.PAYMENT_UPI_VPA || "billing@estimex";
+  const provider = (cleanEnv(process.env.PAYMENT_PROVIDER) || "razorpay").toLowerCase();
+  const rawKeyId = cleanEnv(process.env.PAYMENT_KEY_ID || process.env.RAZORPAY_KEY_ID);
+  const keyId = rawKeyId || null;
+  const rawKeySecret = cleanEnv(process.env.PAYMENT_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET);
+  const keySecret = rawKeySecret || null;
+  const upiVpa = cleanEnv(process.env.PAYMENT_UPI_VPA) || "billing@estimex";
 
   const hasKeys = Boolean(keyId && keySecret);
   const isTestKey = Boolean(keyId && (keyId.startsWith("rzp_test_") || keyId === "rzp_test_simulated"));
   const isTestMode =
     process.env.NODE_ENV !== "production" &&
-    (!hasKeys || process.env.PAYMENT_TEST_MODE === "true" || isTestKey);
+    (!hasKeys || cleanEnv(process.env.PAYMENT_TEST_MODE) === "true" || isTestKey);
 
   if (!hasKeys) {
     return {
       isConfigured: false,
-      isTestMode: process.env.NODE_ENV !== "production",
+      isTestMode: false,
       feeInr,
       provider,
-      keyId: process.env.NODE_ENV === "production" ? null : "rzp_test_simulated",
+      keyId: null,
       currency: "INR",
       reasonNotConfigured:
         "Payment provider credentials (PAYMENT_KEY_ID / PAYMENT_KEY_SECRET) are not configured.",
@@ -56,7 +63,7 @@ export function getPaymentConfig(): PaymentConfig {
     };
   }
 
-  // If in production and configured with test keys, disallow treating as valid production live config
+  // If in production, reject test payment credentials (rzp_test_*) unconditionally
   if (process.env.NODE_ENV === "production" && isTestKey) {
     return {
       isConfigured: false,
@@ -87,5 +94,6 @@ export function isPaymentConfigured(): boolean {
 }
 
 export function getPaymentWebhookSecret(): string | null {
-  return process.env.PAYMENT_WEBHOOK_SECRET || process.env.RAZORPAY_WEBHOOK_SECRET || null;
+  const raw = process.env.PAYMENT_WEBHOOK_SECRET || process.env.RAZORPAY_WEBHOOK_SECRET;
+  return cleanEnv(raw) || null;
 }

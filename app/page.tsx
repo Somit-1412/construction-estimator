@@ -1,5 +1,31 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Civil Construction Quantity & Cost Estimation | ₹699 Flat Fee",
+  description:
+    "Upload architectural plans for accurate civil quantity take-offs, itemized Bill of Quantities (BOQ), and material & labor schedules for a fixed ₹699 fee.",
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  name: "Estimex Civil Construction Estimation",
+  description:
+    "Civil construction quantity take-offs, Bill of Quantities (BOQ) preparation, and structural material estimation based on architectural drawings.",
+  provider: {
+    "@type": "Organization",
+    name: "Estimex",
+    email: "anushrisatpute03@gmail.com",
+  },
+  offers: {
+    "@type": "Offer",
+    price: "699",
+    priceCurrency: "INR",
+    description: "Fixed service fee per estimation request.",
+  },
+};
 
 const features = [
   [
@@ -27,6 +53,10 @@ const features = [
 export default function Home() {
   return (
     <main className="min-h-screen blueprint-grid text-slate-900">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-2 md:px-8">
           <Link
@@ -305,15 +335,34 @@ export default function Home() {
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+            <Link
+              href="/terms"
+              className="font-medium text-slate-600 hover:text-blue-700 transition"
+            >
+              Terms &amp; Conditions
+            </Link>
+            <span className="hidden sm:inline">·</span>
+            <Link
+              href="/privacy"
+              className="font-medium text-slate-600 hover:text-blue-700 transition"
+            >
+              Privacy Policy
+            </Link>
+            <span className="hidden sm:inline">·</span>
+            <Link
+              href="/refund-policy"
+              className="font-medium text-slate-600 hover:text-blue-700 transition"
+            >
+              Refund Policy
+            </Link>
+            <span className="hidden sm:inline">·</span>
             <Link
               href="/contact"
               className="font-medium text-slate-600 hover:text-blue-700 transition"
             >
               Contact Us
             </Link>
-            <span className="hidden sm:inline">·</span>
-            <span>Engineering-led quantity and cost estimation.</span>
           </div>
         </div>
       </footer>

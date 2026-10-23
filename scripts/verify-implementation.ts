@@ -752,17 +752,20 @@ async function runTests() {
 
     // Decompress PDF stream content and verify reconstructed text & payment receipt
     const zlib = await import("node:zlib");
-    const streamMatches = pdfText.match(/stream\r?\n([\s\S]*?)\r?\nendstream/g) || [];
-    const decompressedStreams = streamMatches
-      .map((m) => {
-        const streamData = m.replace(/^stream\r?\n/, "").replace(/\r?\nendstream$/, "");
-        try {
-          return zlib.inflateSync(Buffer.from(streamData, "latin1")).toString("latin1");
-        } catch {
-          return "";
-        }
-      })
-      .join("\n");
+    const streamRegex = /\/Length\s+(\d+)[\s\S]*?stream\r?\n/g;
+    let match: RegExpExecArray | null;
+    const decompressedList: string[] = [];
+    while ((match = streamRegex.exec(pdfText)) !== null) {
+      const len = parseInt(match[1], 10);
+      const start = match.index + match[0].length;
+      const slice = pdfBuffer.subarray(start, start + len);
+      try {
+        decompressedList.push(zlib.inflateSync(slice).toString("latin1"));
+      } catch {
+        // Raw image streams (e.g. DCTDecode JPEG) are not deflate streams
+      }
+    }
+    const decompressedStreams = decompressedList.join("\n");
 
     const extractedText = (decompressedStreams.match(/<([0-9a-fA-F]+)>/g) || [])
       .map((h) => Buffer.from(h.replace(/<|>/g, ""), "hex").toString("latin1"))

@@ -188,7 +188,8 @@ export async function verifyAndRecordPayment({
   projectId: string;
 }) {
   const config = getPaymentConfig();
-  const secret = process.env.PAYMENT_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET;
+  const rawSecret = process.env.PAYMENT_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET;
+  const secret = rawSecret ? rawSecret.trim().replace(/^["'\\]+|["'\\]+$/g, "").trim() : "";
 
   if (config.isConfigured && secret) {
     // Authoritative signature verification: HMAC-SHA256(orderId + "|" + paymentId, secret)

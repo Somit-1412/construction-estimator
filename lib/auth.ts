@@ -25,8 +25,8 @@ function hashToken(token: string): string {
 }
 
 async function ensureConfiguredEngineer(email: string, password: string) {
-  const configuredEmail = process.env.ENGINEER_EMAIL?.trim().toLowerCase();
-  const configuredPassword = process.env.ENGINEER_PASSWORD;
+  const configuredEmail = process.env.ENGINEER_EMAIL?.trim().replace(/^["'\\]+|["'\\]+$/g, "").toLowerCase();
+  const configuredPassword = process.env.ENGINEER_PASSWORD?.trim().replace(/^["'\\]+|["'\\]+$/g, "");
   if (!configuredEmail || !configuredPassword || email !== configuredEmail || password !== configuredPassword) return null;
 
   const existing = await prisma.engineer.findUnique({ where: { email: configuredEmail } });
