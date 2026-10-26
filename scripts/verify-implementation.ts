@@ -1433,6 +1433,79 @@ async function runTests() {
     assert(!homePage.includes("length: 36"), "The 36-div drawing placeholder grid must be removed");
   });
 
+  console.log("\n9. CANONICAL PRODUCTION SEO, SITEMAP & ROBOTS URL INTEGRITY");
+  await test("getSiteUrl defaults to https://estimex-nine.vercel.app and strips trailing slashes", async () => {
+    const { getSiteUrl, DEFAULT_SITE_URL } = await import("../lib/site-url");
+    assert.strictEqual(DEFAULT_SITE_URL, "https://estimex-nine.vercel.app");
+
+    const originalEnv = process.env.NEXT_PUBLIC_SITE_URL;
+    try {
+      delete process.env.NEXT_PUBLIC_SITE_URL;
+      assert.strictEqual(getSiteUrl(), "https://estimex-nine.vercel.app");
+
+      process.env.NEXT_PUBLIC_SITE_URL = "https://custom-domain.com/";
+      assert.strictEqual(getSiteUrl(), "https://custom-domain.com", "Trailing slash must be stripped");
+    } finally {
+      if (originalEnv !== undefined) {
+        process.env.NEXT_PUBLIC_SITE_URL = originalEnv;
+      } else {
+        delete process.env.NEXT_PUBLIC_SITE_URL;
+      }
+    }
+  });
+
+  await test("sitemap() generates valid entries with https://estimex-nine.vercel.app and excludes private routes", async () => {
+    const { default: sitemap } = await import("../app/sitemap");
+    const entries = sitemap();
+
+    assert(Array.isArray(entries) && entries.length > 0, "sitemap() must return an array of entries");
+
+    // All entries must start with https://estimex-nine.vercel.app
+    for (const entry of entries) {
+      assert(entry.url.startsWith("https://estimex-nine.vercel.app"), `Entry URL must start with canonical base: ${entry.url}`);
+      assert(!entry.url.includes("estimex.in"), `Entry URL must never contain estimex.in: ${entry.url}`);
+      assert(!entry.url.includes("/customer"), `Private customer route must not be in sitemap: ${entry.url}`);
+      assert(!entry.url.includes("/engineer"), `Private engineer route must not be in sitemap: ${entry.url}`);
+      assert(!entry.url.includes("/submit"), `Submission intake route must not be in sitemap: ${entry.url}`);
+      assert(!entry.url.includes("/api"), `API route must not be in sitemap: ${entry.url}`);
+    }
+
+    const urls = entries.map((e) => e.url);
+    assert(urls.includes("https://estimex-nine.vercel.app"), "Must include homepage");
+    assert(urls.includes("https://estimex-nine.vercel.app/contact"), "Must include /contact");
+    assert(urls.includes("https://estimex-nine.vercel.app/terms"), "Must include /terms");
+    assert(urls.includes("https://estimex-nine.vercel.app/privacy"), "Must include /privacy");
+    assert(urls.includes("https://estimex-nine.vercel.app/refund-policy"), "Must include /refund-policy");
+    assert(urls.includes("https://estimex-nine.vercel.app/login"), "Must include /login");
+    assert(urls.includes("https://estimex-nine.vercel.app/register"), "Must include /register");
+  });
+
+  await test("robots() points to canonical sitemap and protects private routes", async () => {
+    const { default: robots } = await import("../app/robots");
+    const config = robots();
+
+    assert.strictEqual(config.sitemap, "https://estimex-nine.vercel.app/sitemap.xml");
+
+    const rules = Array.isArray(config.rules) ? config.rules[0] : config.rules;
+    assert(rules, "robots rules must be defined");
+    const disallow = Array.isArray(rules.disallow) ? rules.disallow : [rules.disallow];
+    assert(disallow.includes("/customer/") || disallow.includes("/customer"), "Must disallow customer routes");
+    assert(disallow.includes("/engineer/") || disallow.includes("/engineer"), "Must disallow engineer routes");
+    assert(disallow.includes("/submit/") || disallow.includes("/submit"), "Must disallow submit routes");
+    assert(disallow.includes("/api/"), "Must disallow api routes");
+  });
+
+  await test("No estimex.in references remain in app/ or lib/", async () => {
+    const fs = await import("node:fs");
+    const sitemapContent = fs.readFileSync("app/sitemap.ts", "utf-8");
+    const robotsContent = fs.readFileSync("app/robots.ts", "utf-8");
+    const layoutContent = fs.readFileSync("app/layout.tsx", "utf-8");
+
+    assert(!sitemapContent.includes("estimex.in"), "app/sitemap.ts must not reference estimex.in");
+    assert(!robotsContent.includes("estimex.in"), "app/robots.ts must not reference estimex.in");
+    assert(!layoutContent.includes("estimex.in"), "app/layout.tsx must not reference estimex.in");
+  });
+
   console.log(`\n======================================================`);
   console.log(`ALL TESTS PASSED: ${passed}/${total} assertions verified successfully.`);
   console.log(`======================================================\n`);
