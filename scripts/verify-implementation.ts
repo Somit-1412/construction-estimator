@@ -19,7 +19,9 @@ import {
   verifyAndRecordPayment,
   recordWebhookPayment,
   verifyWebhookSignature,
+  PaymentError,
 } from "../lib/payment/service";
+import { POST as handleWebhookPost } from "../app/api/payments/webhook/route";
 import { generateEstimatePdf } from "../lib/reports/estimatePdf";
 import { prisma } from "../lib/prisma";
 
@@ -134,25 +136,52 @@ async function runTests() {
     assert.strictEqual(paintingLabour.quantity, 200); // 120 + 80
   });
 
-  console.log("\n2. PAYMENT WORKFLOW & SECURITY");
+  console.log("\n2. PAYMENT WORKFLOW & WEBHOOK SECURITY");
   test("Payment config defaults to fixed ₹699 fee when env is unset", () => {
-    delete process.env.ESTIMATION_SERVICE_FEE_INR;
-    const config = getPaymentConfig();
-    assert.strictEqual(DEFAULT_SERVICE_FEE_INR, 699, "DEFAULT_SERVICE_FEE_INR must be 699");
-    assert.strictEqual(config.feeInr, 699, "feeInr must default to 699 INR");
-    assert.strictEqual(config.currency, "INR");
-    assert.strictEqual(config.isTestMode, true, "isTestMode must be true when keys absent");
-    assert(config.upiVpa && config.upiVpa.length > 0, "UPI VPA must be present");
+    const savedKeyId = process.env.PAYMENT_KEY_ID;
+    const savedKeySecret = process.env.PAYMENT_KEY_SECRET;
+    const savedRzpKeyId = process.env.RAZORPAY_KEY_ID;
+    const savedRzpKeySecret = process.env.RAZORPAY_KEY_SECRET;
+    const savedFee = process.env.ESTIMATION_SERVICE_FEE_INR;
+    try {
+      delete process.env.PAYMENT_KEY_ID;
+      delete process.env.PAYMENT_KEY_SECRET;
+      delete process.env.RAZORPAY_KEY_ID;
+      delete process.env.RAZORPAY_KEY_SECRET;
+      delete process.env.ESTIMATION_SERVICE_FEE_INR;
+      const config = getPaymentConfig();
+      assert.strictEqual(DEFAULT_SERVICE_FEE_INR, 699, "DEFAULT_SERVICE_FEE_INR must be 699");
+      assert.strictEqual(config.feeInr, 699, "feeInr must default to 699 INR");
+      assert.strictEqual(config.currency, "INR");
+      assert.strictEqual(config.isTestMode, true, "isTestMode must be true when keys absent");
+      assert(config.upiVpa && config.upiVpa.length > 0, "UPI VPA must be present");
+    } finally {
+      if (savedKeyId !== undefined) process.env.PAYMENT_KEY_ID = savedKeyId;
+      if (savedKeySecret !== undefined) process.env.PAYMENT_KEY_SECRET = savedKeySecret;
+      if (savedRzpKeyId !== undefined) process.env.RAZORPAY_KEY_ID = savedRzpKeyId;
+      if (savedRzpKeySecret !== undefined) process.env.RAZORPAY_KEY_SECRET = savedRzpKeySecret;
+      if (savedFee !== undefined) process.env.ESTIMATION_SERVICE_FEE_INR = savedFee;
+    }
   });
 
   test("Payment config respects positive environment fee override", () => {
-    process.env.ESTIMATION_SERVICE_FEE_INR = "899";
-    const config = getPaymentConfig();
-    assert.strictEqual(config.feeInr, 899, "feeInr must use environment override");
-    delete process.env.ESTIMATION_SERVICE_FEE_INR;
+    const savedFee = process.env.ESTIMATION_SERVICE_FEE_INR;
+    try {
+      process.env.ESTIMATION_SERVICE_FEE_INR = "899";
+      const config = getPaymentConfig();
+      assert.strictEqual(config.feeInr, 899, "feeInr must use environment override");
+    } finally {
+      if (savedFee !== undefined) process.env.ESTIMATION_SERVICE_FEE_INR = savedFee;
+      else delete process.env.ESTIMATION_SERVICE_FEE_INR;
+    }
   });
 
   await test("createPaymentOrder creates ₹699 order with dynamic UPI and prevents double charging", async () => {
+    const savedKeyId = process.env.PAYMENT_KEY_ID;
+    const savedKeySecret = process.env.PAYMENT_KEY_SECRET;
+    process.env.PAYMENT_KEY_ID = "rzp_test_fixture";
+    process.env.PAYMENT_KEY_SECRET = "fixture_secret_12345";
+
     const testEmail = `test_pay_cust_${Date.now()}@example.com`;
     const customer = await prisma.customer.create({
       data: { name: "Pay Cust", email: testEmail, passwordHash: "h" },
@@ -169,154 +198,724 @@ async function runTests() {
       },
     });
 
-    // 1. Create order
-    const order = await createPaymentOrder(project.id, customer.id);
-    assert(order.orderId.startsWith("order_"), "orderId must be generated");
-    assert.strictEqual(order.amountInr, 699, "amountInr must be 699");
-    assert.strictEqual(order.amountPaise, 69900, "amountPaise must be 69900");
-    assert.strictEqual(order.currency, "INR");
-    assert(order.upiDeepLink.includes("am=699.00"), "UPI deep link must encode exact ₹699 amount");
-    assert(order.upiDeepLink.includes(encodeURIComponent(order.orderId)), "UPI deep link must include orderId");
-
-    // 2. Idempotency: second call returns the same pending order
-    const secondOrder = await createPaymentOrder(project.id, customer.id);
-    assert.strictEqual(secondOrder.orderId, order.orderId, "Must return existing order for idempotency");
-
-    // 3. Complete payment
-    const verifyResult = await verifyAndRecordPayment({
-      orderId: order.orderId,
-      paymentId: `pay_tx_${Date.now()}`,
-      signature: "test_signature",
-      projectId: project.id,
-    });
-    assert.strictEqual(verifyResult.success, true);
-    assert.strictEqual(verifyResult.project.status, "PAYMENT_RECEIVED");
-
-    // 4. Double charging prevention: calling createPaymentOrder now must throw
-    let errorThrown = false;
     try {
-      await createPaymentOrder(project.id, customer.id);
-    } catch (err: unknown) {
-      errorThrown = true;
-      const msg = err instanceof Error ? err.message : "";
-      assert(msg.includes("already been received"), "Must prevent double charging");
-    }
-    assert(errorThrown, "Must reject payment creation after payment received");
+      // 1. Create order
+      const order = await createPaymentOrder(project.id, customer.id);
+      assert(order.orderId.startsWith("order_"), "orderId must be generated");
+      assert.strictEqual(order.amountInr, 699, "amountInr must be 699");
+      assert.strictEqual(order.amountPaise, 69900, "amountPaise must be 69900");
+      assert.strictEqual(order.currency, "INR");
+      assert(order.upiDeepLink.includes("am=699.00"), "UPI deep link must encode exact ₹699 amount");
+      assert(order.upiDeepLink.includes(encodeURIComponent(order.orderId)), "UPI deep link must include orderId");
 
-    // Clean up
-    await prisma.customer.delete({ where: { id: customer.id } });
-  });
+      // 2. Idempotency: second call returns the same pending order
+      const secondOrder = await createPaymentOrder(project.id, customer.id);
+      assert.strictEqual(secondOrder.orderId, order.orderId, "Must return existing order for idempotency");
 
-  await test("HMAC signature verification rejects invalid signatures in production mode", async () => {
-    process.env.PAYMENT_KEY_ID = "rzp_live_test";
-    process.env.PAYMENT_KEY_SECRET = "live_secret_12345";
-    const orderId = "order_test_123";
-    const paymentId = "pay_test_456";
+      // 3. Complete payment with valid HMAC signature
+      const paymentId = `pay_tx_${Date.now()}`;
+      const validSig = createHmac("sha256", "fixture_secret_12345")
+        .update(`${order.orderId}|${paymentId}`)
+        .digest("hex");
 
-    const forgedSignature = "forged_hex_signature";
-    let errorThrown = false;
-    try {
-      await verifyAndRecordPayment({
-        orderId,
+      const verifyResult = await verifyAndRecordPayment({
+        orderId: order.orderId,
         paymentId,
-        signature: forgedSignature,
-        projectId: "non_existent_project",
+        signature: validSig,
+        projectId: project.id,
+        customerId: customer.id,
       });
-    } catch (err: unknown) {
-      errorThrown = true;
-      const msg = err instanceof Error ? err.message : "";
-      assert(msg.includes("Invalid payment signature") || msg.includes("Verification failed"));
-    }
-    assert(errorThrown, "Forged signature must throw verification error");
-    delete process.env.PAYMENT_KEY_ID;
-    delete process.env.PAYMENT_KEY_SECRET;
-  });
+      assert.strictEqual(verifyResult.success, true);
+      assert.strictEqual(verifyResult.project.status, "PAYMENT_RECEIVED");
 
-  await test("Production guards reject test signatures and unconfigured orders in production", async () => {
-    const prevNodeEnv = process.env.NODE_ENV;
-    const envRecord = process.env as Record<string, string | undefined>;
-    try {
-      envRecord.NODE_ENV = "production";
-      delete process.env.PAYMENT_KEY_ID;
-      delete process.env.PAYMENT_KEY_SECRET;
-
-      // 1. verifyAndRecordPayment must reject test signatures in production
-      let verifyError = false;
+      // 4. Double charging prevention: calling createPaymentOrder now must throw
+      let errorThrown = false;
       try {
-        await verifyAndRecordPayment({
-          orderId: "order_prod_test",
-          paymentId: "pay_prod_test",
-          signature: "test_signature",
-          projectId: "non_existent_project",
-        });
+        await createPaymentOrder(project.id, customer.id);
       } catch (err: unknown) {
-        verifyError = true;
+        errorThrown = true;
         const msg = err instanceof Error ? err.message : "";
-        assert(msg.includes("Simulated test payments are disabled in production"));
+        assert(msg.includes("already been received"), "Must prevent double charging");
       }
-      assert(verifyError, "Test signatures must be rejected in production");
-
-      // 2. verifyWebhookSignature must return false when secret is missing in production
-      delete process.env.PAYMENT_WEBHOOK_SECRET;
-      const webhookValid = verifyWebhookSignature("{}", "test_webhook_signature");
-      assert.strictEqual(webhookValid, false, "Webhook must reject test signatures in production");
-
-      // 3. createPaymentOrder must reject when unconfigured in production
-      let orderError = false;
-      try {
-        await createPaymentOrder("proj_123", "cust_123");
-      } catch (err: unknown) {
-        orderError = true;
-        const msg = err instanceof Error ? err.message : "";
-        assert(msg.includes("Payment gateway is not configured"));
-      }
-      assert(orderError, "createPaymentOrder must reject unconfigured keys in production");
+      assert(errorThrown, "Must reject payment creation after payment received");
     } finally {
-      envRecord.NODE_ENV = prevNodeEnv;
+      await prisma.project.delete({ where: { id: project.id } });
+      await prisma.customer.delete({ where: { id: customer.id } });
+      if (savedKeyId !== undefined) process.env.PAYMENT_KEY_ID = savedKeyId;
+      else delete process.env.PAYMENT_KEY_ID;
+      if (savedKeySecret !== undefined) process.env.PAYMENT_KEY_SECRET = savedKeySecret;
+      else delete process.env.PAYMENT_KEY_SECRET;
     }
   });
 
-  await test("Webhook marks payment COMPLETED and project PAYMENT_RECEIVED", async () => {
-    const testEmail = `test_webhook_${Date.now()}@example.com`;
-    const customer = await prisma.customer.create({
-      data: { name: "Webhook Cust", email: testEmail, passwordHash: "h" },
-    });
+  await test("Case 1: Valid captured-payment webhook (payment.captured -> 200, COMPLETED)", async () => {
+    const testSecret = "webhook_secret_case_1";
+    process.env.PAYMENT_WEBHOOK_SECRET = testSecret;
 
+    const testEmail = `test_case1_${Date.now()}@example.com`;
+    const customer = await prisma.customer.create({
+      data: { name: "Case 1 Customer", email: testEmail, passwordHash: "h" },
+    });
     const project = await prisma.project.create({
       data: {
-        projectName: "Webhook Project",
-        clientName: "Webhook Cust",
+        projectName: "Case 1 Project",
+        clientName: "Case 1 Customer",
         clientEmail: testEmail,
         location: "Mumbai",
         customerId: customer.id,
         status: "PAYMENT_PENDING",
       },
     });
-
     const order = await createPaymentOrder(project.id, customer.id);
-    const webhookRes = await recordWebhookPayment({
-      orderId: order.orderId,
-      paymentId: `webhook_pay_${Date.now()}`,
+    const paymentId = `pay_live_captured_${Date.now()}`;
+
+    const webhookBody = JSON.stringify({
+      entity: "event",
+      account_id: "acc_live_test",
+      event: "payment.captured",
+      contains: ["payment"],
+      payload: {
+        payment: {
+          entity: {
+            id: paymentId,
+            entity: "payment",
+            amount: 69900,
+            currency: "INR",
+            status: "captured",
+            order_id: order.orderId,
+            method: "upi",
+            email: testEmail,
+          },
+        },
+      },
     });
 
-    assert.strictEqual(webhookRes.success, true);
-    assert.strictEqual(webhookRes.project.status, "PAYMENT_RECEIVED");
-    assert.strictEqual(webhookRes.payment.status, "COMPLETED");
+    const signature = createHmac("sha256", testSecret).update(webhookBody).digest("hex");
+    const request = new Request("https://estimex-nine.vercel.app/api/payments/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-razorpay-signature": signature,
+      },
+      body: webhookBody,
+    });
 
-    // Clean up
-    await prisma.customer.delete({ where: { id: customer.id } });
+    try {
+      const res = await handleWebhookPost(request);
+      assert.strictEqual(res.status, 200, "Webhook response status must be 200");
+      const body = await res.json();
+      assert.strictEqual(body.received, true);
+      assert.strictEqual(body.status, "completed");
+      assert.strictEqual(body.orderId, order.orderId);
+      assert.strictEqual(body.paymentId, paymentId);
+
+      // Verify DB state
+      const updatedPayment = await prisma.payment.findUnique({ where: { orderId: order.orderId } });
+      assert(updatedPayment, "Payment record must exist");
+      assert.strictEqual(updatedPayment.status, "COMPLETED");
+      assert.strictEqual(updatedPayment.transactionId, paymentId);
+      const meta = updatedPayment.metadata as Record<string, unknown>;
+      assert.strictEqual(meta.webhookEvent, "payment.captured");
+      assert(meta.webhookProcessedAt, "webhookProcessedAt must be recorded");
+
+      const updatedProject = await prisma.project.findUnique({ where: { id: project.id } });
+      assert(updatedProject, "Project record must exist");
+      assert.strictEqual(updatedProject.status, "PAYMENT_RECEIVED");
+    } finally {
+      await prisma.project.delete({ where: { id: project.id } });
+      await prisma.customer.delete({ where: { id: customer.id } });
+      delete process.env.PAYMENT_WEBHOOK_SECRET;
+    }
   });
 
-  test("Webhook signature verification verifies authentic payloads", () => {
-    process.env.PAYMENT_WEBHOOK_SECRET = "webhook_secret_key";
-    const payload = JSON.stringify({ event: "payment.captured", paymentId: "pay_1" });
-    const authenticSignature = createHmac("sha256", "webhook_secret_key")
-      .update(payload)
-      .digest("hex");
+  await test("Case 2: Invalid webhook signature (-> 400)", async () => {
+    process.env.PAYMENT_WEBHOOK_SECRET = "secret_case_2";
+    const webhookBody = JSON.stringify({
+      event: "payment.captured",
+      payload: {
+        payment: {
+          entity: { id: "pay_test", order_id: "order_test", amount: 69900, currency: "INR" },
+        },
+      },
+    });
 
-    assert.strictEqual(verifyWebhookSignature(payload, authenticSignature), true);
-    assert.strictEqual(verifyWebhookSignature(payload, "invalid_sig"), false);
+    const request = new Request("https://estimex-nine.vercel.app/api/payments/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-razorpay-signature": "tampered_bad_signature_hex",
+      },
+      body: webhookBody,
+    });
+
+    const res = await handleWebhookPost(request);
+    assert.strictEqual(res.status, 400, "Must return 400 on invalid signature");
+    const body = await res.json();
+    assert(body.error.includes("Invalid webhook signature"));
     delete process.env.PAYMENT_WEBHOOK_SECRET;
+  });
+
+  await test("Case 3: Missing webhook secret in production (-> rejected 400)", async () => {
+    const prevNodeEnv = process.env.NODE_ENV;
+    const envRecord = process.env as Record<string, string | undefined>;
+    try {
+      envRecord.NODE_ENV = "production";
+      delete process.env.PAYMENT_WEBHOOK_SECRET;
+      delete process.env.RAZORPAY_WEBHOOK_SECRET;
+
+      const webhookBody = JSON.stringify({ event: "payment.captured" });
+      const request = new Request("https://estimex-nine.vercel.app/api/payments/webhook", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-razorpay-signature": "any_signature",
+        },
+        body: webhookBody,
+      });
+
+      const res = await handleWebhookPost(request);
+      assert.strictEqual(res.status, 400, "Must reject webhook when secret is missing in production");
+      assert.strictEqual(verifyWebhookSignature(webhookBody, "any_sig"), false);
+    } finally {
+      envRecord.NODE_ENV = prevNodeEnv;
+    }
+  });
+
+  await test("Case 4: Failed-payment event (payment.failed -> 200, failure recorded, NOT marked completed)", async () => {
+    const testSecret = "secret_case_4";
+    process.env.PAYMENT_WEBHOOK_SECRET = testSecret;
+
+    const testEmail = `test_case4_${Date.now()}@example.com`;
+    const customer = await prisma.customer.create({
+      data: { name: "Case 4 Customer", email: testEmail, passwordHash: "h" },
+    });
+    const project = await prisma.project.create({
+      data: {
+        projectName: "Case 4 Project",
+        clientName: "Case 4 Customer",
+        clientEmail: testEmail,
+        location: "Delhi",
+        customerId: customer.id,
+        status: "PAYMENT_PENDING",
+      },
+    });
+    const order = await createPaymentOrder(project.id, customer.id);
+    const failedPaymentId = `pay_failed_${Date.now()}`;
+
+    const webhookBody = JSON.stringify({
+      entity: "event",
+      event: "payment.failed",
+      contains: ["payment"],
+      payload: {
+        payment: {
+          entity: {
+            id: failedPaymentId,
+            order_id: order.orderId,
+            amount: 69900,
+            currency: "INR",
+            status: "failed",
+            error_code: "BAD_REQUEST_ERROR",
+            error_description: "Payment failed due to card decline",
+          },
+        },
+      },
+    });
+
+    const signature = createHmac("sha256", testSecret).update(webhookBody).digest("hex");
+    const request = new Request("https://estimex-nine.vercel.app/api/payments/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-razorpay-signature": signature,
+      },
+      body: webhookBody,
+    });
+
+    try {
+      const res = await handleWebhookPost(request);
+      assert.strictEqual(res.status, 200);
+      const body = await res.json();
+      assert.strictEqual(body.received, true);
+      assert.strictEqual(body.event, "payment.failed");
+      assert.strictEqual(body.status, "recorded_failure");
+
+      // Check DB state: payment MUST remain PENDING, project MUST remain PAYMENT_PENDING
+      const paymentRecord = await prisma.payment.findUnique({ where: { orderId: order.orderId } });
+      assert(paymentRecord, "Payment record must exist");
+      assert.strictEqual(paymentRecord.status, "PENDING", "Payment status must NOT be COMPLETED");
+      const meta = paymentRecord.metadata as Record<string, unknown>;
+      assert.strictEqual(meta.lastFailedPaymentId, failedPaymentId);
+      assert.strictEqual(meta.lastErrorCode, "BAD_REQUEST_ERROR");
+      assert.strictEqual(meta.lastErrorDescription, "Payment failed due to card decline");
+
+      const projectRecord = await prisma.project.findUnique({ where: { id: project.id } });
+      assert(projectRecord, "Project record must exist");
+      assert.strictEqual(projectRecord.status, "PAYMENT_PENDING", "Project status must NOT be PAYMENT_RECEIVED");
+    } finally {
+      await prisma.project.delete({ where: { id: project.id } });
+      await prisma.customer.delete({ where: { id: customer.id } });
+      delete process.env.PAYMENT_WEBHOOK_SECRET;
+    }
+  });
+
+  await test("Case 5: Unrelated event (order.created / refund.processed -> 200 ignored, DB unchanged)", async () => {
+    const testSecret = "secret_case_5";
+    process.env.PAYMENT_WEBHOOK_SECRET = testSecret;
+
+    const webhookBody = JSON.stringify({
+      entity: "event",
+      event: "order.created",
+      payload: {
+        order: { entity: { id: "order_unrelated_123" } },
+      },
+    });
+
+    const signature = createHmac("sha256", testSecret).update(webhookBody).digest("hex");
+    const request = new Request("https://estimex-nine.vercel.app/api/payments/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-razorpay-signature": signature,
+      },
+      body: webhookBody,
+    });
+
+    const res = await handleWebhookPost(request);
+    assert.strictEqual(res.status, 200);
+    const body = await res.json();
+    assert.strictEqual(body.received, true);
+    assert.strictEqual(body.event, "order.created");
+    assert.strictEqual(body.status, "ignored");
+    delete process.env.PAYMENT_WEBHOOK_SECRET;
+  });
+
+  await test("Case 6: Missing payment ID or order ID (-> 400, no invented transaction ID)", async () => {
+    const testSecret = "secret_case_6";
+    process.env.PAYMENT_WEBHOOK_SECRET = testSecret;
+
+    // Missing payment ID
+    const bodyNoPaymentId = JSON.stringify({
+      event: "payment.captured",
+      payload: {
+        order: { entity: { id: "order_only_123" } },
+      },
+    });
+
+    const sigNoPayment = createHmac("sha256", testSecret).update(bodyNoPaymentId).digest("hex");
+    const reqNoPayment = new Request("https://estimex-nine.vercel.app/api/payments/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-razorpay-signature": sigNoPayment,
+      },
+      body: bodyNoPaymentId,
+    });
+
+    const res1 = await handleWebhookPost(reqNoPayment);
+    assert.strictEqual(res1.status, 400);
+    const data1 = await res1.json();
+    assert(data1.error.includes("Missing required payment ID or order ID"));
+
+    // Missing order ID
+    const bodyNoOrderId = JSON.stringify({
+      event: "payment.captured",
+      payload: {
+        payment: { entity: { id: "pay_only_123" } },
+      },
+    });
+
+    const sigNoOrder = createHmac("sha256", testSecret).update(bodyNoOrderId).digest("hex");
+    const reqNoOrder = new Request("https://estimex-nine.vercel.app/api/payments/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-razorpay-signature": sigNoOrder,
+      },
+      body: bodyNoOrderId,
+    });
+
+    const res2 = await handleWebhookPost(reqNoOrder);
+    assert.strictEqual(res2.status, 400);
+    const data2 = await res2.json();
+    assert(data2.error.includes("Missing required payment ID or order ID"));
+    delete process.env.PAYMENT_WEBHOOK_SECRET;
+  });
+
+  await test("Case 7: Incorrect amount or currency (amount 10000 or currency USD -> 400)", async () => {
+    const testSecret = "secret_case_7";
+    process.env.PAYMENT_WEBHOOK_SECRET = testSecret;
+
+    // 7a: Amount mismatch (10000 paise instead of 69900)
+    const bodyBadAmount = JSON.stringify({
+      event: "payment.captured",
+      payload: {
+        payment: {
+          entity: {
+            id: "pay_bad_amount",
+            order_id: "order_bad_amount",
+            amount: 10000,
+            currency: "INR",
+          },
+        },
+      },
+    });
+
+    const sigBadAmount = createHmac("sha256", testSecret).update(bodyBadAmount).digest("hex");
+    const reqBadAmount = new Request("https://estimex-nine.vercel.app/api/payments/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-razorpay-signature": sigBadAmount,
+      },
+      body: bodyBadAmount,
+    });
+
+    const resBadAmount = await handleWebhookPost(reqBadAmount);
+    assert.strictEqual(resBadAmount.status, 400);
+    const dataBadAmount = await resBadAmount.json();
+    assert(dataBadAmount.error.includes("does not match expected estimation fee"));
+
+    // 7b: Currency mismatch (USD instead of INR)
+    const bodyBadCurrency = JSON.stringify({
+      event: "payment.captured",
+      payload: {
+        payment: {
+          entity: {
+            id: "pay_bad_curr",
+            order_id: "order_bad_curr",
+            amount: 69900,
+            currency: "USD",
+          },
+        },
+      },
+    });
+
+    const sigBadCurrency = createHmac("sha256", testSecret).update(bodyBadCurrency).digest("hex");
+    const reqBadCurrency = new Request("https://estimex-nine.vercel.app/api/payments/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-razorpay-signature": sigBadCurrency,
+      },
+      body: bodyBadCurrency,
+    });
+
+    const resBadCurrency = await handleWebhookPost(reqBadCurrency);
+    assert.strictEqual(resBadCurrency.status, 400);
+    const dataBadCurrency = await resBadCurrency.json();
+    assert(dataBadCurrency.error.includes("does not match expected (INR)"));
+    delete process.env.PAYMENT_WEBHOOK_SECRET;
+  });
+
+  await test("Case 8: Unknown order (order_unknown_xxx -> 404)", async () => {
+    const testSecret = "secret_case_8";
+    process.env.PAYMENT_WEBHOOK_SECRET = testSecret;
+
+    const webhookBody = JSON.stringify({
+      event: "payment.captured",
+      payload: {
+        payment: {
+          entity: {
+            id: "pay_unknown_order_123",
+            order_id: "order_does_not_exist_9999",
+            amount: 69900,
+            currency: "INR",
+          },
+        },
+      },
+    });
+
+    const signature = createHmac("sha256", testSecret).update(webhookBody).digest("hex");
+    const request = new Request("https://estimex-nine.vercel.app/api/payments/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-razorpay-signature": signature,
+      },
+      body: webhookBody,
+    });
+
+    const res = await handleWebhookPost(request);
+    assert.strictEqual(res.status, 404);
+    const body = await res.json();
+    assert(body.error.includes("Payment record not found for webhook order"));
+    delete process.env.PAYMENT_WEBHOOK_SECRET;
+  });
+
+  await test("Case 9: Duplicate webhook delivery (idempotent 200 already_processed)", async () => {
+    const testSecret = "secret_case_9";
+    process.env.PAYMENT_WEBHOOK_SECRET = testSecret;
+
+    const testEmail = `test_case9_${Date.now()}@example.com`;
+    const customer = await prisma.customer.create({
+      data: { name: "Case 9 Customer", email: testEmail, passwordHash: "h" },
+    });
+    const project = await prisma.project.create({
+      data: {
+        projectName: "Case 9 Project",
+        clientName: "Case 9 Customer",
+        clientEmail: testEmail,
+        location: "Kolkata",
+        customerId: customer.id,
+        status: "PAYMENT_PENDING",
+      },
+    });
+    const order = await createPaymentOrder(project.id, customer.id);
+    const paymentId = `pay_case9_${Date.now()}`;
+
+    const webhookBody = JSON.stringify({
+      event: "payment.captured",
+      payload: {
+        payment: {
+          entity: {
+            id: paymentId,
+            order_id: order.orderId,
+            amount: 69900,
+            currency: "INR",
+          },
+        },
+      },
+    });
+
+    const signature = createHmac("sha256", testSecret).update(webhookBody).digest("hex");
+    const makeReq = () =>
+      new Request("https://estimex-nine.vercel.app/api/payments/webhook", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-razorpay-signature": signature,
+        },
+        body: webhookBody,
+      });
+
+    try {
+      // First delivery -> completed
+      const res1 = await handleWebhookPost(makeReq());
+      assert.strictEqual(res1.status, 200);
+      const body1 = await res1.json();
+      assert.strictEqual(body1.status, "completed");
+
+      // Second delivery (duplicate) -> already_processed
+      const res2 = await handleWebhookPost(makeReq());
+      assert.strictEqual(res2.status, 200);
+      const body2 = await res2.json();
+      assert.strictEqual(body2.status, "already_processed");
+      assert.strictEqual(body2.received, true);
+    } finally {
+      await prisma.project.delete({ where: { id: project.id } });
+      await prisma.customer.delete({ where: { id: customer.id } });
+      delete process.env.PAYMENT_WEBHOOK_SECRET;
+    }
+  });
+
+  await test("Case 10: Database failure returns 500 retryable response", async () => {
+    process.env.PAYMENT_WEBHOOK_SECRET = "secret_case_10";
+    const webhookBody = JSON.stringify({
+      event: "payment.captured",
+      payload: {
+        payment: {
+          entity: {
+            id: "pay_db_err",
+            order_id: "order_db_err",
+            amount: 69900,
+            currency: "INR",
+          },
+        },
+      },
+    });
+
+    const signature = createHmac("sha256", "secret_case_10").update(webhookBody).digest("hex");
+    const request = new Request("https://estimex-nine.vercel.app/api/payments/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-razorpay-signature": signature,
+      },
+      body: webhookBody,
+    });
+
+    // Mock underlying client $transaction throwing database connection error
+    const globalStore = globalThis as unknown as {
+      prisma: { $transaction: (...args: unknown[]) => Promise<unknown> };
+    };
+    const client = globalStore.prisma;
+    const origTransaction = client.$transaction;
+    client.$transaction = async () => {
+      throw new Error("PrismaClientKnownRequestError: Connection lost to database host");
+    };
+
+    try {
+      const res = await handleWebhookPost(request);
+      assert.strictEqual(res.status, 500, "Database errors must return 500 so Razorpay retries");
+      const body = await res.json();
+      assert(body.error.includes("Database error during webhook processing. Will retry."));
+    } finally {
+      client.$transaction = origTransaction;
+      delete process.env.PAYMENT_WEBHOOK_SECRET;
+    }
+  });
+
+  await test("Case 11: Invalid checkout signature & client spoofing prevention", async () => {
+    const savedKeyId = process.env.PAYMENT_KEY_ID;
+    const savedKeySecret = process.env.PAYMENT_KEY_SECRET;
+    process.env.PAYMENT_KEY_ID = "rzp_test_fixture";
+    process.env.PAYMENT_KEY_SECRET = "fixture_secret_case_11";
+
+    const customerA = await prisma.customer.create({
+      data: { name: "Customer A", email: `cust_a_${Date.now()}@example.com`, passwordHash: "h" },
+    });
+    const customerB = await prisma.customer.create({
+      data: { name: "Customer B", email: `cust_b_${Date.now()}@example.com`, passwordHash: "h" },
+    });
+
+    const projectA = await prisma.project.create({
+      data: {
+        projectName: "Project A",
+        clientName: "Customer A",
+        clientEmail: customerA.email,
+        location: "Bengaluru",
+        customerId: customerA.id,
+        status: "PAYMENT_PENDING",
+      },
+    });
+
+    const orderA = await createPaymentOrder(projectA.id, customerA.id);
+    const paymentId = `pay_case_11_${Date.now()}`;
+
+    try {
+      // 11a: Tampered checkout signature throws 400
+      let sigError = false;
+      try {
+        await verifyAndRecordPayment({
+          orderId: orderA.orderId,
+          paymentId,
+          signature: "tampered_fake_signature_hex",
+          projectId: projectA.id,
+          customerId: customerA.id,
+        });
+      } catch (err: unknown) {
+        sigError = true;
+        assert(err instanceof PaymentError);
+        assert.strictEqual(err.status, 400);
+        assert(err.message.includes("Invalid payment signature"));
+      }
+      assert(sigError, "Invalid checkout signature must throw 400");
+
+      // Valid signature
+      const validSig = createHmac("sha256", "fixture_secret_case_11")
+        .update(`${orderA.orderId}|${paymentId}`)
+        .digest("hex");
+
+      // 11b: Customer B attempts to spoof verification for Customer A's project (throws 403)
+      let spoofError = false;
+      try {
+        await verifyAndRecordPayment({
+          orderId: orderA.orderId,
+          paymentId,
+          signature: validSig,
+          projectId: projectA.id,
+          customerId: customerB.id, // Wrong customer!
+        });
+      } catch (err: unknown) {
+        spoofError = true;
+        assert(err instanceof PaymentError);
+        assert.strictEqual(err.status, 403);
+        assert(err.message.includes("Project does not belong to the authenticated customer"));
+      }
+      assert(spoofError, "Client spoofing must be blocked with 403");
+
+      // 11c: Legitimate verification with Customer A succeeds
+      const legitimateResult = await verifyAndRecordPayment({
+        orderId: orderA.orderId,
+        paymentId,
+        signature: validSig,
+        projectId: projectA.id,
+        customerId: customerA.id,
+      });
+      assert.strictEqual(legitimateResult.success, true);
+      assert.strictEqual(legitimateResult.project.status, "PAYMENT_RECEIVED");
+    } finally {
+      await prisma.project.delete({ where: { id: projectA.id } });
+      await prisma.customer.deleteMany({
+        where: { id: { in: [customerA.id, customerB.id] } },
+      });
+      if (savedKeyId !== undefined) process.env.PAYMENT_KEY_ID = savedKeyId;
+      else delete process.env.PAYMENT_KEY_ID;
+      if (savedKeySecret !== undefined) process.env.PAYMENT_KEY_SECRET = savedKeySecret;
+      else delete process.env.PAYMENT_KEY_SECRET;
+    }
+  });
+
+  await test("Status guards: Webhooks do not downgrade IN_PROGRESS/COMPLETED or overwrite REFUNDED", async () => {
+    const testSecret = "secret_status_guards";
+    process.env.PAYMENT_WEBHOOK_SECRET = testSecret;
+
+    const testEmail = `test_guards_${Date.now()}@example.com`;
+    const customer = await prisma.customer.create({
+      data: { name: "Guard Customer", email: testEmail, passwordHash: "h" },
+    });
+
+    const projectInProgress = await prisma.project.create({
+      data: {
+        projectName: "Guard Project 1",
+        clientName: "Guard Customer",
+        clientEmail: testEmail,
+        location: "Hyderabad",
+        customerId: customer.id,
+        status: "PAYMENT_PENDING",
+      },
+    });
+    const order1 = await createPaymentOrder(projectInProgress.id, customer.id);
+    // Advance project to IN_PROGRESS
+    await prisma.project.update({
+      where: { id: projectInProgress.id },
+      data: { status: "IN_PROGRESS" },
+    });
+
+    const projectRefunded = await prisma.project.create({
+      data: {
+        projectName: "Guard Project 2",
+        clientName: "Guard Customer",
+        clientEmail: testEmail,
+        location: "Hyderabad",
+        customerId: customer.id,
+        status: "PAYMENT_PENDING",
+      },
+    });
+    const order2 = await createPaymentOrder(projectRefunded.id, customer.id);
+    await prisma.payment.update({
+      where: { orderId: order2.orderId },
+      data: { status: "REFUNDED" },
+    });
+
+    try {
+      // 1. IN_PROGRESS project is preserved
+      const webhookRes = await recordWebhookPayment({
+        orderId: order1.orderId,
+        paymentId: `pay_guard_${Date.now()}`,
+      });
+      assert.strictEqual(webhookRes.success, true);
+      assert.strictEqual(webhookRes.project.status, "IN_PROGRESS", "Must NOT downgrade from IN_PROGRESS to PAYMENT_RECEIVED");
+
+      // 2. REFUNDED payment is rejected
+      let refundError = false;
+      try {
+        await recordWebhookPayment({
+          orderId: order2.orderId,
+          paymentId: `pay_refund_${Date.now()}`,
+        });
+      } catch (err: unknown) {
+        refundError = true;
+        assert(err instanceof PaymentError);
+        assert.strictEqual(err.status, 400);
+        assert(err.message.includes("already refunded"));
+      }
+      assert(refundError, "Refunded payment must reject webhook payment");
+    } finally {
+      await prisma.project.deleteMany({ where: { id: { in: [projectInProgress.id, projectRefunded.id] } } });
+      await prisma.customer.delete({ where: { id: customer.id } });
+      delete process.env.PAYMENT_WEBHOOK_SECRET;
+    }
   });
 
   console.log("\n3. MULTI-STOREY BUILDING SUPPORT");

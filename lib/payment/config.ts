@@ -52,10 +52,10 @@ export function getPaymentConfig(): PaymentConfig {
   if (!hasKeys) {
     return {
       isConfigured: false,
-      isTestMode: false,
+      isTestMode: process.env.NODE_ENV !== "production",
       feeInr,
       provider,
-      keyId: null,
+      keyId: process.env.NODE_ENV === "production" ? null : "rzp_test_simulated",
       currency: "INR",
       reasonNotConfigured:
         "Payment provider credentials (PAYMENT_KEY_ID / PAYMENT_KEY_SECRET) are not configured.",

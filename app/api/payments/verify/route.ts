@@ -24,6 +24,7 @@ export async function POST(request: Request) {
       paymentId,
       signature,
       projectId,
+      customerId: customer.id,
     });
     await touchCustomerSession();
     return NextResponse.json({

@@ -1,6 +1,7 @@
 import "server-only";
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import type { Payment, Project } from "@/lib/generated/prisma/client";
 import { getPaymentConfig, getPaymentWebhookSecret } from "./config";
 
 export class PaymentError extends Error {
@@ -172,20 +173,86 @@ export async function createPaymentOrder(projectId: string, customerId: string) 
   };
 }
 
+function timingSafeCompare(a: string, b: string): boolean {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  const bufA = Buffer.from(a.trim(), "utf8");
+  const bufB = Buffer.from(b.trim(), "utf8");
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * Optionally retrieves live payment details directly from Razorpay's server-side API
+ * to provide authoritative confirmation of order linkage, status, amount, and currency.
+ */
+export async function fetchRazorpayPaymentDetails(paymentId: string): Promise<{
+  id: string;
+  order_id: string | null;
+  amount: number;
+  currency: string;
+  status: string;
+  method?: string;
+  email?: string;
+} | null> {
+  const config = getPaymentConfig();
+  const rawSecret = process.env.PAYMENT_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET;
+  const secret = rawSecret ? rawSecret.trim().replace(/^["'\\]+|["'\\]+$/g, "").trim() : "";
+
+  if (!config.keyId || !secret || config.keyId.includes("simulated") || config.isTestMode) {
+    return null;
+  }
+
+  try {
+    const basicAuth = Buffer.from(`${config.keyId}:${secret}`).toString("base64");
+    const res = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Basic ${basicAuth}`,
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new PaymentError("Payment record not found on Razorpay gateway.", 404);
+      }
+      return null;
+    }
+
+    const data = (await res.json()) as Record<string, unknown>;
+    return {
+      id: String(data.id || ""),
+      order_id: data.order_id ? String(data.order_id) : null,
+      amount: Number(data.amount),
+      currency: String(data.currency || "INR").toUpperCase(),
+      status: String(data.status || ""),
+      method: typeof data.method === "string" ? data.method : undefined,
+      email: typeof data.email === "string" ? data.email : undefined,
+    };
+  } catch (err) {
+    if (err instanceof PaymentError) throw err;
+    return null;
+  }
+}
+
 /**
  * Verifies payment signatures and authoritatively transitions project status to PAYMENT_RECEIVED.
- * Never trusts client redirect alone; requires server-side HMAC validation or validated test-signature.
+ * Never trusts client redirect alone; requires server-side HMAC validation with timing-safe comparison,
+ * customer ownership confirmation, and idempotent state transitions.
  */
 export async function verifyAndRecordPayment({
   orderId,
   paymentId,
   signature,
   projectId,
+  customerId,
 }: {
   orderId: string;
   paymentId: string;
   signature: string;
   projectId: string;
+  customerId?: string;
 }) {
   const config = getPaymentConfig();
   const rawSecret = process.env.PAYMENT_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET;
@@ -197,6 +264,8 @@ export async function verifyAndRecordPayment({
       .update(`${orderId}|${paymentId}`)
       .digest("hex");
 
+    const isHmacValid = timingSafeCompare(signature, expectedSignature);
+
     const isTestValid =
       process.env.NODE_ENV !== "production" &&
       config.isTestMode &&
@@ -204,8 +273,39 @@ export async function verifyAndRecordPayment({
         signature === "simulated_success" ||
         signature.startsWith("test_"));
 
-    if (signature !== expectedSignature && !isTestValid) {
+    if (!isHmacValid && !isTestValid) {
       throw new PaymentError("Invalid payment signature. Verification failed.", 400);
+    }
+
+    // If live credentials are configured and not in test/simulated mode, verify against Razorpay API
+    if (!isTestValid && !config.isTestMode && !config.keyId?.includes("simulated")) {
+      try {
+        const rzpPayment = await fetchRazorpayPaymentDetails(paymentId);
+        if (rzpPayment) {
+          if (rzpPayment.order_id && rzpPayment.order_id !== orderId) {
+            throw new PaymentError("Payment does not belong to this order on Razorpay.", 400);
+          }
+          if (rzpPayment.status !== "captured" && rzpPayment.status !== "authorized") {
+            throw new PaymentError(
+              `Payment status on gateway is '${rzpPayment.status}', expected 'captured' or 'authorized'.`,
+              400
+            );
+          }
+          const expectedPaise = Math.round(config.feeInr * 100);
+          if (rzpPayment.amount !== expectedPaise && rzpPayment.amount !== config.feeInr) {
+            throw new PaymentError(
+              `Payment amount (₹${rzpPayment.amount / 100}) does not match the ₹${config.feeInr} estimation fee.`,
+              400
+            );
+          }
+          if (rzpPayment.currency !== config.currency.toUpperCase()) {
+            throw new PaymentError("Payment currency does not match INR.", 400);
+          }
+        }
+      } catch (err) {
+        if (err instanceof PaymentError) throw err;
+        // Network timeouts fall back to cryptographically verified HMAC signature
+      }
     }
   } else {
     // Reject any test signature in production
@@ -222,8 +322,9 @@ export async function verifyAndRecordPayment({
       .update(`${orderId}|${paymentId}`)
       .digest("hex");
 
+    const isHmacValid = timingSafeCompare(signature, expectedSignature);
     const isTestValid =
-      signature === expectedSignature ||
+      isHmacValid ||
       signature === "test_signature" ||
       signature === "simulated_success" ||
       signature.startsWith("test_");
@@ -236,40 +337,80 @@ export async function verifyAndRecordPayment({
   // Transactionally update Payment to COMPLETED and Project to PAYMENT_RECEIVED
   const result = await prisma.$transaction(
     async (tx) => {
-    const payment = await tx.payment.findUnique({
-      where: { orderId },
-      include: { project: true },
-    });
+      const payment = await tx.payment.findUnique({
+        where: { orderId },
+        include: { project: true },
+      });
 
-    if (!payment) {
-      throw new PaymentError("Payment record not found for this order.", 404);
-    }
+      if (!payment) {
+        throw new PaymentError("Payment record not found for this order.", 404);
+      }
 
-    if (payment.projectId !== projectId) {
-      throw new PaymentError("Order does not belong to this project.", 400);
-    }
+      if (payment.projectId !== projectId) {
+        throw new PaymentError("Order does not belong to this project.", 400);
+      }
 
-    if (payment.status === "COMPLETED") {
-      // Idempotent: already marked completed
-      return { success: true, payment, project: payment.project };
-    }
+      // Verify project ownership if customerId provided
+      if (customerId && payment.project.customerId && payment.project.customerId !== customerId) {
+        throw new PaymentError("Project does not belong to the authenticated customer.", 403);
+      }
 
-    const updatedPayment = await tx.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: "COMPLETED",
-        transactionId: paymentId,
-      },
-    });
+      if (payment.status === "REFUNDED") {
+        throw new PaymentError("Payment record is marked as refunded.", 400);
+      }
 
-    const updatedProject = await tx.project.update({
-      where: { id: projectId },
-      data: {
-        status: "PAYMENT_RECEIVED",
-      },
-    });
+      if (payment.status === "COMPLETED") {
+        // Idempotent: already marked completed
+        return {
+          success: true,
+          payment,
+          project: payment.project,
+          alreadyProcessed: true,
+        };
+      }
 
-    return { success: true, payment: updatedPayment, project: updatedProject };
+      // Confirm expected amount and currency
+      if (Number(payment.amount) !== config.feeInr || payment.currency.toUpperCase() !== config.currency.toUpperCase()) {
+        throw new PaymentError("Payment record amount or currency mismatch.", 400);
+      }
+
+      const existingMetadata =
+        payment.metadata && typeof payment.metadata === "object"
+          ? (payment.metadata as Record<string, unknown>)
+          : {};
+
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: "COMPLETED",
+          transactionId: paymentId,
+          metadata: {
+            ...existingMetadata,
+            checkoutVerifiedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      // Preserve advanced project status if engineer has already started or completed
+      const shouldUpdateProject =
+        payment.project.status === "PAYMENT_PENDING" ||
+        payment.project.status === "SUBMITTED";
+
+      const updatedProject = shouldUpdateProject
+        ? await tx.project.update({
+            where: { id: projectId },
+            data: {
+              status: "PAYMENT_RECEIVED",
+            },
+          })
+        : payment.project;
+
+      return {
+        success: true,
+        payment: updatedPayment,
+        project: updatedProject,
+        alreadyProcessed: false,
+      };
     },
     { maxWait: 10000, timeout: 20000 }
   );
@@ -277,55 +418,204 @@ export async function verifyAndRecordPayment({
   return result;
 }
 
+/**
+ * Validates Razorpay's webhook signature against the unaltered raw request body.
+ * Uses timing-safe constant-time comparison to prevent timing attacks.
+ * In production, strictly requires PAYMENT_WEBHOOK_SECRET.
+ */
 export function verifyWebhookSignature(rawBody: string, signature: string): boolean {
+  if (!rawBody || typeof rawBody !== "string" || !signature || typeof signature !== "string") {
+    return false;
+  }
+
   const secret = getPaymentWebhookSecret();
   if (!secret) {
     if (process.env.NODE_ENV === "production") {
       return false;
     }
-    // In test mode without webhook secret, accept test header
+    // In non-production test mode without webhook secret, accept designated test signature
     return signature === "test_webhook_signature";
   }
+
   const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
-  return expected === signature;
+  return timingSafeCompare(signature, expected);
 }
 
+/**
+ * Idempotently records a verified webhook payment for an order.
+ * Validates amount, currency, order linkage, and preserves existing project progression.
+ */
 export async function recordWebhookPayment({
   orderId,
   paymentId,
+  amount,
+  currency,
+  method,
+  email,
+  event,
 }: {
   orderId: string;
   paymentId: string;
+  amount?: number;
+  currency?: string;
+  method?: string;
+  email?: string;
+  event?: string;
+}): Promise<{
+  success: boolean;
+  payment: Payment;
+  project: Project;
+  alreadyProcessed?: boolean;
+}> {
+  const config = getPaymentConfig();
+  const expectedInr = config.feeInr;
+  const expectedPaise = Math.round(expectedInr * 100);
+
+  // Validate amount if supplied from webhook payload
+  if (amount !== undefined && amount !== null) {
+    const num = Number(amount);
+    if (num !== expectedPaise && num !== expectedInr) {
+      throw new PaymentError(
+        `Webhook payment amount (${num}) does not match expected estimation fee (₹${expectedInr} / ${expectedPaise} paise).`,
+        400
+      );
+    }
+  }
+
+  // Validate currency if supplied from webhook payload
+  if (currency && typeof currency === "string") {
+    if (currency.toUpperCase() !== config.currency.toUpperCase()) {
+      throw new PaymentError(
+        `Webhook payment currency (${currency}) does not match expected (${config.currency}).`,
+        400
+      );
+    }
+  }
+
+  return prisma.$transaction(
+    async (tx) => {
+      const payment = await tx.payment.findUnique({
+        where: { orderId },
+        include: { project: true },
+      });
+
+      if (!payment) {
+        throw new PaymentError("Payment record not found for webhook order.", 404);
+      }
+
+      if (payment.status === "REFUNDED") {
+        throw new PaymentError("Payment order is already refunded.", 400);
+      }
+
+      // Idempotency: if already completed, do not re-process or overwrite
+      if (payment.status === "COMPLETED") {
+        return {
+          success: true,
+          payment,
+          project: payment.project,
+          alreadyProcessed: true,
+        };
+      }
+
+      // Confirm expected amount and currency in the payment record
+      if (Number(payment.amount) !== expectedInr || payment.currency.toUpperCase() !== config.currency.toUpperCase()) {
+        throw new PaymentError("Payment record amount or currency mismatch.", 400);
+      }
+
+      const existingMetadata =
+        payment.metadata && typeof payment.metadata === "object"
+          ? (payment.metadata as Record<string, unknown>)
+          : {};
+
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: "COMPLETED",
+          transactionId: paymentId,
+          metadata: {
+            ...existingMetadata,
+            webhookEvent: event || "payment.captured",
+            webhookProcessedAt: new Date().toISOString(),
+            ...(method ? { paymentMethod: method } : {}),
+            ...(email ? { paymentEmail: email } : {}),
+          },
+        },
+      });
+
+      // Preserve advanced project status if engineer has already started or completed
+      const shouldUpdateProject =
+        payment.project.status === "PAYMENT_PENDING" ||
+        payment.project.status === "SUBMITTED";
+
+      const updatedProject = shouldUpdateProject
+        ? await tx.project.update({
+            where: { id: payment.projectId },
+            data: {
+              status: "PAYMENT_RECEIVED",
+            },
+          })
+        : payment.project;
+
+      return {
+        success: true,
+        payment: updatedPayment,
+        project: updatedProject,
+        alreadyProcessed: false,
+      };
+    },
+    { maxWait: 10000, timeout: 20000 }
+  );
+}
+
+/**
+ * Records failure details from a payment.failed webhook event in metadata
+ * without marking the payment as completed or transitioning the project.
+ */
+export async function recordFailedPaymentWebhook({
+  orderId,
+  paymentId,
+  errorCode,
+  errorDescription,
+}: {
+  orderId: string;
+  paymentId?: string;
+  errorCode?: string;
+  errorDescription?: string;
 }) {
-  return prisma.$transaction(async (tx) => {
-    const payment = await tx.payment.findUnique({
-      where: { orderId },
-      include: { project: true },
-    });
+  return prisma.$transaction(
+    async (tx) => {
+      const payment = await tx.payment.findUnique({
+        where: { orderId },
+        include: { project: true },
+      });
 
-    if (!payment) {
-      throw new PaymentError("Payment record not found for webhook order.", 404);
-    }
+      if (!payment) return null;
 
-    if (payment.status === "COMPLETED") {
-      return { success: true, payment, project: payment.project };
-    }
+      // Do not overwrite an already completed or refunded payment
+      if (payment.status === "COMPLETED" || payment.status === "REFUNDED") {
+        return payment;
+      }
 
-    const updatedPayment = await tx.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: "COMPLETED",
-        transactionId: paymentId,
-      },
-    });
+      const existingMetadata =
+        payment.metadata && typeof payment.metadata === "object"
+          ? (payment.metadata as Record<string, unknown>)
+          : {};
 
-    const updatedProject = await tx.project.update({
-      where: { id: payment.projectId },
-      data: {
-        status: "PAYMENT_RECEIVED",
-      },
-    });
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          metadata: {
+            ...existingMetadata,
+            lastFailedPaymentId: paymentId,
+            lastErrorCode: errorCode,
+            lastErrorDescription: errorDescription,
+            lastFailedAt: new Date().toISOString(),
+          },
+        },
+      });
 
-    return { success: true, payment: updatedPayment, project: updatedProject };
-  }, { maxWait: 10000, timeout: 20000 });
+      return updatedPayment;
+    },
+    { maxWait: 10000, timeout: 20000 }
+  );
 }
