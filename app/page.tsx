@@ -97,6 +97,7 @@ export default function Home() {
 
             <Link
               href="/submit"
+              prefetch={false}
               className="primary-button text-xs !px-2.5 !py-2 sm:!px-4 sm:!py-2.5 sm:text-sm"
             >
               <span className="hidden sm:inline">Start an estimate</span>
@@ -126,6 +127,7 @@ export default function Home() {
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/submit"
+                prefetch={false}
                 className="primary-button text-center"
               >
                 Submit your project
@@ -271,49 +273,29 @@ export default function Home() {
       </section>
 
       <section>
-        <div className="mx-auto max-w-7xl px-5 py-20 md:px-8">
-          <div className="engineering-card overflow-hidden">
-            <div className="grid lg:grid-cols-[1fr_.7fr]">
-              <div className="p-8 md:p-12">
-                <p className="text-xs font-extrabold uppercase tracking-[.2em] text-blue-700">
-                  Ready when you are
-                </p>
+        <div className="mx-auto max-w-7xl px-5 py-16 md:px-8">
+          <div className="engineering-card p-8 md:p-12">
+            <div className="max-w-2xl">
+              <p className="text-xs font-extrabold uppercase tracking-[.2em] text-blue-700">
+                Ready when you are
+              </p>
 
-                <h2 className="mt-3 text-3xl font-extrabold tracking-tight">
-                  Start with the building information you already have.
-                </h2>
+              <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">
+                Start with the building information you already have.
+              </h2>
 
-                <p className="mt-4 max-w-xl text-slate-600">
-                  Upload the available drawings and provide the basic project
-                  details. The engineering review happens after submission.
-                </p>
+              <p className="mt-4 text-slate-600 leading-relaxed">
+                Upload the available drawings and provide the basic project
+                details. The engineering review happens after submission.
+              </p>
 
-                <Link
-                  href="/submit"
-                  className="primary-button mt-7 inline-block"
-                >
-                  Begin project submission
-                </Link>
-              </div>
-
-              <div className="min-h-56 blueprint-grid border-t border-slate-200 lg:border-l lg:border-t-0">
-                <div className="h-full p-8">
-                  <div className="h-full rounded-xl border border-blue-100 bg-white/70 p-5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
-                      Drawing reference
-                    </p>
-
-                    <div className="mt-4 grid grid-cols-6 gap-2 opacity-60">
-                      {Array.from({ length: 36 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="h-5 border border-blue-100"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <Link
+                href="/submit"
+                prefetch={false}
+                className="primary-button mt-7 inline-block"
+              >
+                Begin project submission
+              </Link>
             </div>
           </div>
         </div>

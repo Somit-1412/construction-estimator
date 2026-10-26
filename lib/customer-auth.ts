@@ -125,6 +125,7 @@ export async function createCustomerSession(customerId: string) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
+    maxAge: SESSION_DAYS * 24 * 60 * 60,
     expires: expiresAt,
   });
 }

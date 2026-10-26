@@ -1376,6 +1376,63 @@ async function runTests() {
     assert(decompressedStreams.includes("/I1 Do"), "PDF stream must invoke the embedded Estimex logo");
   });
 
+  console.log("\n8. CUSTOMER AUTH FIXES, POSTGRESQL SSL NORMALIZATION & HOMEPAGE CLEANUP");
+  await test("PostgreSQL connection normalization updates sslmode to verify-full and silences warning", async () => {
+    const { normalizeConnectionString } = await import("../lib/prisma");
+    const testUrl = "postgresql://usr:secret@db.example.com:5432/estimex?sslmode=require&connect_timeout=15";
+    const normalized = normalizeConnectionString(testUrl);
+    assert(normalized.includes("sslmode=verify-full"), "Must normalize sslmode=require to sslmode=verify-full");
+    assert(!normalized.includes("sslmode=require"), "sslmode=require must be replaced");
+    assert(normalized.includes("connect_timeout=15"), "Other query parameters must be preserved");
+
+    // Also test fallback and prefer
+    const preferUrl = "postgresql://usr:secret@db.example.com:5432/estimex?sslmode=prefer";
+    assert(normalizeConnectionString(preferUrl).includes("sslmode=verify-full"), "Must normalize prefer");
+
+    const caUrl = "postgresql://usr:secret@db.example.com:5432/estimex?sslmode=verify-ca";
+    assert(normalizeConnectionString(caUrl).includes("sslmode=verify-full"), "Must normalize verify-ca");
+
+    const fs = await import("node:fs");
+    const prismaFile = fs.readFileSync("lib/prisma.ts", "utf-8");
+    assert(!prismaFile.includes("console.log(connectionString)"), "Never leak connection strings or secrets");
+  });
+
+  await test("Customer session cookie specifies both maxAge and expires for cross-client reliability", async () => {
+    const fs = await import("node:fs");
+    const authFile = fs.readFileSync("lib/customer-auth.ts", "utf-8");
+    assert(authFile.includes("maxAge: SESSION_DAYS * 24 * 60 * 60"), "Customer session cookie must specify maxAge");
+    assert(authFile.includes("expires: expiresAt"), "Customer session cookie must specify expires");
+    assert(authFile.includes("sameSite: \"lax\""), "Customer session cookie must use lax sameSite");
+    assert(authFile.includes("httpOnly: true"), "Customer session cookie must be httpOnly");
+  });
+
+  await test("Protected layouts export dynamic = force-dynamic and revalidate = 0", async () => {
+    const fs = await import("node:fs");
+    const submitLayout = fs.readFileSync("app/submit/layout.tsx", "utf-8");
+    assert(submitLayout.includes('export const dynamic = "force-dynamic"'), "app/submit/layout.tsx must be force-dynamic");
+    assert(submitLayout.includes("export const revalidate = 0"), "app/submit/layout.tsx must revalidate = 0");
+
+    const customerLayout = fs.readFileSync("app/customer/layout.tsx", "utf-8");
+    assert(customerLayout.includes('export const dynamic = "force-dynamic"'), "app/customer/layout.tsx must be force-dynamic");
+    assert(customerLayout.includes("export const revalidate = 0"), "app/customer/layout.tsx must revalidate = 0");
+  });
+
+  await test("Customer dashboard and homepage submit links disable prefetch to prevent stale redirect caching", async () => {
+    const fs = await import("node:fs");
+    const customerPage = fs.readFileSync("app/customer/page.tsx", "utf-8");
+    assert(customerPage.includes('href="/submit" prefetch={false}'), "Customer dashboard submit links must disable prefetch");
+
+    const homePage = fs.readFileSync("app/page.tsx", "utf-8");
+    assert(homePage.includes('href="/submit"\n              prefetch={false}'), "Homepage submit links must disable prefetch");
+  });
+
+  await test("Homepage Drawing reference section is completely removed from codebase", async () => {
+    const fs = await import("node:fs");
+    const homePage = fs.readFileSync("app/page.tsx", "utf-8");
+    assert(!homePage.includes("Drawing reference"), "Drawing reference section must be removed from homepage");
+    assert(!homePage.includes("length: 36"), "The 36-div drawing placeholder grid must be removed");
+  });
+
   console.log(`\n======================================================`);
   console.log(`ALL TESTS PASSED: ${passed}/${total} assertions verified successfully.`);
   console.log(`======================================================\n`);

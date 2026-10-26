@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import {
   authenticateCustomer,
   createCustomerSession,
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
   const password = typeof body?.password === "string" ? body.password : "";
 
   if (!email || !password) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Email and password are required." },
       { status: 400 },
     );
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
   const customer = await authenticateCustomer(email, password);
 
   if (!customer) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Invalid customer credentials." },
       { status: 401 },
     );
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
 
   await createCustomerSession(customer.id);
 
-  return Response.json({
+  return NextResponse.json({
     customer: {
       id: customer.id,
       name: customer.name,

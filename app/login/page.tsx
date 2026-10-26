@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { FormEvent, Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
@@ -40,7 +39,7 @@ function LoginForm() {
       const raw = searchParams.get("callbackUrl") ?? "";
       const destination =
         raw.startsWith("/") && !raw.startsWith("//") ? raw : "/customer";
-      router.push(destination);
+      window.location.href = destination;
     } catch (error) {
       setError(
         error instanceof Error

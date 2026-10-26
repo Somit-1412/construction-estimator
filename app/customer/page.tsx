@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import { getCurrentCustomer } from "@/lib/customer-auth";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function CustomerDashboard() {
   const customer = await getCurrentCustomer();
 
@@ -92,7 +95,7 @@ export default async function CustomerDashboard() {
             </p>
           </div>
 
-          <Link href="/submit" className="primary-button inline-block">
+          <Link href="/submit" prefetch={false} className="primary-button inline-block">
             Start an estimate
           </Link>
         </div>
@@ -110,6 +113,7 @@ export default async function CustomerDashboard() {
 
             <Link
               href="/submit"
+              prefetch={false}
               className="primary-button mt-6 inline-block"
             >
               Submit a project
